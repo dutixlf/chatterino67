@@ -5,6 +5,7 @@
 #pragma once
 
 #include "common/ChatterinoSetting.hpp"
+#include "common/Ebloid.hpp"
 #include "common/enums/MessageOverflow.hpp"
 #include "common/LastMessageLineStyle.hpp"
 #include "common/Modes.hpp"
@@ -507,6 +508,12 @@ public:
         "/streamerMode/hideUserNotes",
         true,
     };
+
+    /// eblo.id image rendering
+    EnumSetting<EbloidStreamerMode> ebloidStreamerMode = {
+        "/ebloid/streamerMode", EbloidStreamerMode::Disabled};
+    ChatterinoSetting<std::vector<QString>> ebloidStreamerTrustedChatters = {
+        "/ebloid/trustedChatters", {}};
 
     /// Blocked Users
     BoolSetting enableTwitchBlockedUsers = {"/ignore/enableTwitchBlockedUsers",

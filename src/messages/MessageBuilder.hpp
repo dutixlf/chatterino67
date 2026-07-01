@@ -6,6 +6,7 @@
 
 #include "common/Aliases.hpp"
 #include "common/Outcome.hpp"
+#include "messages/Image.hpp"
 #include "messages/MessageColor.hpp"
 #include "messages/MessageFlag.hpp"
 
@@ -19,6 +20,7 @@
 #include <ctime>
 #include <memory>
 #include <utility>
+#include <vector>
 
 namespace chatterino {
 
@@ -342,10 +344,21 @@ private:
                                         const QString &userID,
                                         const Channel *channel);
 
+    /// Adds any pending eblo.id inline images to the end of the message.
+    /// This should be called after all message text has been appended.
+    void addPendingEbloidImages();
+
     std::shared_ptr<Message> message_;
     MessageColor textColor_ = MessageColor::Text;
 
     QColor usernameColor_ = {153, 153, 153};
+
+    struct PendingEbloidImage {
+        QString linkUrl;
+        QString imageUrl;
+        bool loadNow;
+    };
+    std::vector<PendingEbloidImage> pendingEbloidImages_;
 };
 
 }  // namespace chatterino

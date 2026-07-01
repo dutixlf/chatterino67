@@ -23,6 +23,7 @@ enum class SettingsTabId {
     Accounts,
     Highlights,
     Moderation,
+    Ebloid,
     About,
 };
 

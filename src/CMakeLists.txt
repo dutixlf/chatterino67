@@ -28,6 +28,8 @@ set(SOURCE_FILES
         common/ChatterSet.hpp
         common/Credentials.cpp
         common/Credentials.hpp
+        common/Ebloid.cpp
+        common/Ebloid.hpp
         common/Env.cpp
         common/Env.hpp
         common/LastMessageLineStyle.hpp
@@ -331,6 +333,8 @@ set(SOURCE_FILES
 
         messages/Emote.cpp
         messages/Emote.hpp
+        messages/EbloidImageElement.cpp
+        messages/EbloidImageElement.hpp
         messages/Image.cpp
         messages/Image.hpp
         messages/ImageSet.cpp
@@ -352,6 +356,8 @@ set(SOURCE_FILES
         messages/MessageThread.cpp
         messages/MessageThread.hpp
 
+        messages/layouts/EbloidImageLayoutElement.cpp
+        messages/layouts/EbloidImageLayoutElement.hpp
         messages/layouts/MessageLayout.cpp
         messages/layouts/MessageLayout.hpp
         messages/layouts/MessageLayoutContainer.cpp
@@ -766,6 +772,8 @@ set(SOURCE_FILES
         widgets/dialogs/LastRunCrashDialog.hpp
         widgets/dialogs/LoginDialog.cpp
         widgets/dialogs/LoginDialog.hpp
+        widgets/dialogs/ImageViewerDialog.cpp
+        widgets/dialogs/ImageViewerDialog.hpp
         widgets/dialogs/QualityPopup.cpp
         widgets/dialogs/QualityPopup.hpp
         widgets/dialogs/ReplyThreadPopup.cpp
@@ -874,6 +882,8 @@ set(SOURCE_FILES
         widgets/settingspages/CommandPage.cpp
         widgets/settingspages/CommandPage.hpp
         widgets/settingspages/CustomWidgets.hpp
+        widgets/settingspages/EbloidPage.cpp
+        widgets/settingspages/EbloidPage.hpp
         widgets/settingspages/ExternalToolsPage.cpp
         widgets/settingspages/ExternalToolsPage.hpp
         widgets/settingspages/FiltersPage.cpp

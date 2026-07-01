@@ -1234,6 +1234,11 @@ void LinkElement::addToContainer(MessageLayoutContainer &container,
 
 Link LinkElement::getLink() const
 {
+    const auto link = MessageElement::getLink();
+    if (link.isValid())
+    {
+        return link;
+    }
     return {Link::Url, this->linkInfo_.url()};
 }
 

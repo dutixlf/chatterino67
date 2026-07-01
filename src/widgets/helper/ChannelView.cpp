@@ -12,6 +12,7 @@
 #include "controllers/commands/CommandController.hpp"
 #include "controllers/filters/FilterSet.hpp"
 #include "debug/Benchmark.hpp"
+#include "messages/EbloidImageElement.hpp"
 #include "messages/Emote.hpp"
 #include "messages/Image.hpp"
 #include "messages/layouts/MessageLayout.hpp"
@@ -43,6 +44,7 @@
 #include "util/QMagicEnum.hpp"
 #include "util/Twitch.hpp"
 #include "widgets/buttons/LabelButton.hpp"
+#include "widgets/dialogs/ImageViewerDialog.hpp"
 #include "widgets/dialogs/ReplyThreadPopup.hpp"
 #include "widgets/dialogs/SettingsDialog.hpp"
 #include "widgets/dialogs/UserInfoPopup.hpp"
@@ -3309,6 +3311,36 @@ void ChannelView::handleLinkClick(QMouseEvent *event, const Link &link,
             else
             {
                 QDesktopServices::openUrl(QUrl(link.value));
+            }
+        }
+        break;
+
+        case Link::ViewImage: {
+            auto image = Image::fromUrl({link.value});
+            auto *dialog = new ImageViewerDialog(image, this);
+            dialog->show();
+        }
+        break;
+
+        case Link::EbloidImage: {
+            if (event->modifiers() & Qt::ControlModifier)
+            {
+                QDesktopServices::openUrl(QUrl(link.value));
+            }
+            else if (layout != nullptr)
+            {
+                // Reveal the eblo.id image element matching this link.
+                const auto &elements = layout->getMessage()->elements;
+                for (const auto &element : elements)
+                {
+                    auto *ebloid =
+                        dynamic_cast<EbloidImageElement *>(element.get());
+                    if (ebloid != nullptr && !ebloid->isRevealed() &&
+                        ebloid->linkUrl() == link.value)
+                    {
+                        ebloid->reveal();
+                    }
+                }
             }
         }
         break;

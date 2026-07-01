@@ -26,6 +26,8 @@ public:
         ReplyToMessage,
         ViewThread,
         JumpToMessage,
+        ViewImage,
+        EbloidImage,
     };
 
     Link();

@@ -49,7 +49,7 @@ enum class MessageElementFlag : int64_t {
     EmoteText = (1LL << 5),
     Emote = EmoteImage | EmoteText,
 
-    // unused: (1LL << 7),
+    EbloidImage = (1LL << 7),
 
     ChannelPointReward = (1LL << 8),
     ChannelPointRewardImage = ChannelPointReward | EmoteImage,
@@ -168,7 +168,7 @@ enum class MessageElementFlag : int64_t {
     PlatformBadgeIfUnselected = (1LL << 52),
 
     Default = Timestamp | Badges | Username | BitsStatic | EmoteImage |
-              BitsAmount | Text | AlwaysShow,
+              BitsAmount | Text | AlwaysShow | EbloidImage,
 };
 using MessageElementFlags = FlagsEnum<MessageElementFlag>;
 

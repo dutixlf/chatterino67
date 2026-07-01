@@ -5,6 +5,7 @@
 #include "messages/MessageBuilder.hpp"
 
 #include "Application.hpp"
+#include "common/Ebloid.hpp"
 #include "common/LinkParser.hpp"
 #include "common/Literals.hpp"
 #include "common/QLogging.hpp"
@@ -15,6 +16,7 @@
 #include "controllers/ignores/IgnoreController.hpp"
 #include "controllers/ignores/IgnorePhrase.hpp"
 #include "controllers/userdata/UserDataController.hpp"
+#include "messages/EbloidImageElement.hpp"
 #include "messages/Emote.hpp"
 #include "messages/Image.hpp"
 #include "messages/Message.hpp"
@@ -1119,7 +1121,61 @@ void MessageBuilder::addLink(const linkparser::Parsed &parsedLink,
                                    MessageElementFlag::Text, this->textColor_);
     }
 
+    if (ebloid::isEbloidLink(fullUrl))
+    {
+        const auto mode = getSettings()->ebloidStreamerMode.getEnum();
+        const bool senderTrusted =
+            ebloid::isTrustedChatter(this->message_->loginName);
+        const bool clickToLoadOnly =
+            mode == EbloidStreamerMode::ClickToLoad && !senderTrusted;
+        if (clickToLoadOnly)
+        {
+            el->setLink({Link::EbloidImage, fullUrl});
+        }
+
+        this->pendingEbloidImages_.push_back(
+            {fullUrl, ebloid::fileDownloadUrlFromLink(fullUrl),
+             !clickToLoadOnly});
+    }
+
     getApp()->getLinkResolver()->resolve(el->linkInfo());
+}
+
+void MessageBuilder::addPendingEbloidImages()
+{
+    if (this->pendingEbloidImages_.empty())
+    {
+        return;
+    }
+
+    const auto mode = getSettings()->ebloidStreamerMode.getEnum();
+    const bool senderTrusted =
+        ebloid::isTrustedChatter(this->message_->loginName);
+    const bool revealed = senderTrusted || mode == EbloidStreamerMode::Disabled;
+
+    this->emplace<LinebreakElement>(MessageElementFlag::EbloidImage);
+
+    for (const auto &pending : this->pendingEbloidImages_)
+    {
+        if (!pending.loadNow)
+        {
+            // Don't load the image yet; the user must click the placeholder.
+            this->emplace<EbloidImageElement>(ImagePtr{}, pending.linkUrl,
+                                              pending.imageUrl, mode, revealed,
+                                              MessageElementFlag::EbloidImage);
+        }
+        else
+        {
+            // Load the image now (normal mode, blur mode, or trusted sender).
+            auto image = Image::fromUrl({pending.imageUrl}, 1, QSize(0, 0));
+            image->load();
+            this->emplace<EbloidImageElement>(image, pending.linkUrl,
+                                              pending.imageUrl, mode, revealed,
+                                              MessageElementFlag::EbloidImage);
+        }
+    }
+
+    this->pendingEbloidImages_.clear();
 }
 
 bool MessageBuilder::isIgnored(const QString &originalMessage,
@@ -1914,6 +1970,8 @@ std::pair<MessagePtrMut, HighlightAlert> MessageBuilder::makeIrcMessage(
                 ->setLink({Link::ReplyToMessage, builder->id});
         }
     }
+
+    builder.addPendingEbloidImages();
 
     return {builder.release(), highlight};
 }
