@@ -23,8 +23,7 @@ public:
 protected:
     void addCopyTextToString(QString &str, uint32_t from = 0,
                              uint32_t to = UINT32_MAX) const override;
-    void paint(QPainter &painter,
-               const MessageColors &messageColors) override;
+    void paint(QPainter &painter, const MessageColors &messageColors) override;
     bool paintAnimated(QPainter &painter, qreal yOffset) override;
 
 private:
