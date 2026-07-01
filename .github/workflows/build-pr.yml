@@ -1,0 +1,41 @@
+---
+name: Build PR
+
+on:
+  pull_request:
+  merge_group:
+  workflow_dispatch:
+
+concurrency:
+  group: build-pr-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CHATTERINO_REQUIRE_CLEAN_GIT: On
+
+jobs:
+  build-pr:
+    name: "Build PR on Ubuntu"
+    runs-on: ubuntu-latest
+    container: ghcr.io/chatterino/chatterino2-build-ubuntu-24.04:latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - name: Fix git permission error
+        run: |
+          git config --global --add safe.directory '*'
+
+      - name: Build
+        run: |
+          mkdir build
+          cd build
+          cmake \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DPAJLADA_SETTINGS_USE_BOOST_FILESYSTEM=On \
+            -DUSE_PRECOMPILED_HEADERS=OFF \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=On \
+            -DCHATTERINO_PLUGINS=On \
+            ..
+          make -j"$(nproc)"
