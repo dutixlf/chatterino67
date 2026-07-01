@@ -44,6 +44,9 @@ ImageViewerDialog::ImageViewerDialog(ImagePtr image, QWidget *parent)
     // Catch events on the scroll-area and every child widget so that wheel and
     // mouse events are not swallowed by the scroll area / scroll bars.
     this->installEventFilterRecursively(this->scrollArea_);
+    // Also filter our own events so grabMouse() during a drag still reaches us.
+    // ponytail: one eventFilter, two targets; keeps the panning logic in one place.
+    this->installEventFilter(this);
 
     this->label_->setAlignment(Qt::AlignCenter);
     this->label_->setStyleSheet(QLatin1String("background-color: black;"));
