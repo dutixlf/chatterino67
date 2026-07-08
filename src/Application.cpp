@@ -43,6 +43,7 @@
 #include "providers/bttv/BttvLiveUpdates.hpp"
 #include "providers/chatterino/ChatterinoBadges.hpp"
 #include "providers/ffz/FfzBadges.hpp"
+#include "providers/homies/HomiesBadges.hpp"
 #include "providers/seventv/SeventvBadges.hpp"
 #include "providers/seventv/SeventvEventAPI.hpp"
 #include "providers/seventv/SeventvPaints.hpp"
@@ -190,6 +191,7 @@ Application::Application(Settings &_settings, const Paths &paths,
     , twitchPubSub(new PubSub(TWITCH_PUBSUB_URL))
     , twitchBadges(new TwitchBadges)
     , chatterinoBadges(new ChatterinoBadges)
+    , homiesBadges(new HomiesBadges)
     , bttvEmotes(new BttvEmotes)
     , bttvLiveUpdates(makeBttvLiveUpdates(_settings))
     , ffzEmotes(new FfzEmotes)
@@ -484,6 +486,14 @@ IChatterinoBadges *Application::getChatterinoBadges()
     return this->chatterinoBadges.get();
 }
 
+HomiesBadges *Application::getHomiesBadges()
+{
+    assertInGuiThread();
+    assert(this->homiesBadges);
+
+    return this->homiesBadges.get();
+}
+
 ImageUploader *Application::getImageUploader()
 {
     assertInGuiThread();
@@ -671,6 +681,7 @@ void Application::stop()
     this->bttvLiveUpdates.reset();
     this->bttvEmotes.reset();
     this->chatterinoBadges.reset();
+    this->homiesBadges.reset();
     this->twitchBadges.reset();
     this->twitchPubSub.reset();
     this->twitchLiveController.reset();

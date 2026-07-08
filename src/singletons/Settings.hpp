@@ -288,6 +288,13 @@ public:
                                           true};
     BoolSetting showBadgesVanity = {"/appearance/badges/vanity", true};
     BoolSetting showBadgesChatterino = {"/appearance/badges/chatterino", true};
+    BoolSetting showBadgesChatterinoHomies = {
+        "/appearance/badges/chatterinoHomies", true};
+    BoolSetting showBadgesDankChat = {"/appearance/badges/dankchat", true};
+    BoolSetting showBadgesChatsen = {"/appearance/badges/chatsen", true};
+    BoolSetting showBadgesChatty = {"/appearance/badges/chatty", true};
+    BoolSetting showBadgesPurpleTV = {"/appearance/badges/purpletv", true};
+    BoolSetting showBadgesRTE = {"/appearance/badges/rte", true};
     BoolSetting showBadgesFfz = {"/appearance/badges/ffz", true};
     BoolSetting useCustomFfzModeratorBadges = {
         "/appearance/badges/useCustomFfzModeratorBadges", true};

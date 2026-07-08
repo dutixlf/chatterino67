@@ -157,6 +157,13 @@ public:
         return nullptr;
     }
 
+    HomiesBadges *getHomiesBadges() override
+    {
+        assert(false && "EmptyApplication::getHomiesBadges was called "
+                        "without being initialized");
+        return nullptr;
+    }
+
     FfzBadges *getFfzBadges() override
     {
         assert(false && "EmptyApplication::getFfzBadges was called without "

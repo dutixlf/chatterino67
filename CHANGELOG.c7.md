@@ -4,6 +4,7 @@
 
 - Minor: Added "Open 7TV user in browser" and "Open channel in browser" (same as left-click) when right-clicking the profile picture in a usercard (#400)
 - Minor: Unlisted 7TV emotes are now shown by default.
+- Minor: Added support for custom badges from Chatterino Homies, DankChat, Chatsen, Chatty, PurpleTV, and ReYohoho Twitch Extension.
 
 ## 7.5.5-beta.1
 

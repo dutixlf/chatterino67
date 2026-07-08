@@ -101,6 +101,19 @@ enum class MessageElementFlag : int64_t {
     // - Chatterino gnome badge
     BadgeChatterino = (1LL << 18),
 
+    // Slot 6a: Chatterino Homies
+    BadgeChatterinoHomies = (1LL << 38),
+    // Slot 6b: DankChat
+    BadgeDankChat = (1LL << 39),
+    // Slot 6c: Chatsen
+    BadgeChatsen = (1LL << 40),
+    // Slot 6d: Chatty
+    BadgeChatty = (1LL << 41),
+    // Slot 6e: PurpleTV
+    BadgePurpleTV = (1LL << 42),
+    // Slot 6f: ReYohoho Twitch Extension
+    BadgeRTE = (1LL << 43),
+
     // Slot 7: 7TV
     // - 7TV Admin
     // - 7TV Dungeon Mistress
@@ -121,8 +134,10 @@ enum class MessageElementFlag : int64_t {
     BadgeFfz = (1LL << 19),
 
     Badges = BadgeGlobalAuthority | BadgePredictions | BadgeChannelAuthority |
-             BadgeSubscription | BadgeVanity | BadgeChatterino | BadgeSevenTV |
-             BadgeFfz | BadgeSharedChannel | BadgeBttv,
+             BadgeSubscription | BadgeVanity | BadgeChatterino |
+             BadgeChatterinoHomies | BadgeDankChat | BadgeChatsen |
+             BadgeChatty | BadgePurpleTV | BadgeRTE | BadgeSevenTV | BadgeFfz |
+             BadgeSharedChannel | BadgeBttv,
 
     ChannelName = (1LL << 20),
 

@@ -30,6 +30,7 @@
 #include "providers/emoji/Emojis.hpp"
 #include "providers/ffz/FfzBadges.hpp"
 #include "providers/ffz/FfzEmotes.hpp"
+#include "providers/homies/HomiesBadges.hpp"
 #include "providers/links/LinkResolver.hpp"
 #include "providers/seventv/SeventvBadges.hpp"
 #include "providers/seventv/SeventvEmotes.hpp"
@@ -1890,6 +1891,12 @@ std::pair<MessagePtrMut, HighlightAlert> MessageBuilder::makeIrcMessage(
     builder.appendTwitchBadges(tags, twitchChannel);
 
     builder.appendChatterinoBadges(userID);
+    builder.appendChatterinoHomiesBadges(userID);
+    builder.appendDankChatBadges(userID);
+    builder.appendChatsenBadges(userID);
+    builder.appendChattyBadges(ircMessage->nick());
+    builder.appendPurpleTVBadges(userID);
+    builder.appendRTEBadges(userID);
     builder.appendFfzBadges(twitchChannel, userID);
     builder.appendBttvBadges(userID);
     builder.appendSeventvBadges(userID);
@@ -2754,6 +2761,79 @@ void MessageBuilder::appendChatterinoBadges(const QString &userID)
 
         /// e.g. "chatterino:Chatterino Top donator"
         this->message().externalBadges.emplace_back((*badge)->name.string);
+    }
+}
+
+void MessageBuilder::appendChatterinoHomiesBadges(const QString &userID)
+{
+    for (const auto &badge : getApp()->getHomiesBadges()->getUserBadges(
+             HomiesProvider::ChatterinoHomies, {userID}))
+    {
+        this->emplace<BadgeElement>(badge,
+                                    MessageElementFlag::BadgeChatterinoHomies);
+
+        /// e.g. "homies:username Badge"
+        this->message().externalBadges.emplace_back(badge->name.string);
+    }
+}
+
+void MessageBuilder::appendDankChatBadges(const QString &userID)
+{
+    for (const auto &badge : getApp()->getHomiesBadges()->getUserBadges(
+             HomiesProvider::DankChat, {userID}))
+    {
+        this->emplace<BadgeElement>(badge, MessageElementFlag::BadgeDankChat);
+
+        /// e.g. "dankchat:FeelsDankMan"
+        this->message().externalBadges.emplace_back(badge->name.string);
+    }
+}
+
+void MessageBuilder::appendChatsenBadges(const QString &userID)
+{
+    for (const auto &badge : getApp()->getHomiesBadges()->getUserBadges(
+             HomiesProvider::Chatsen, {userID}))
+    {
+        this->emplace<BadgeElement>(badge, MessageElementFlag::BadgeChatsen);
+
+        /// e.g. "chatsen:developer"
+        this->message().externalBadges.emplace_back(badge->name.string);
+    }
+}
+
+void MessageBuilder::appendChattyBadges(const QString &username)
+{
+    for (const auto &badge : getApp()->getHomiesBadges()->getUserBadges(
+             HomiesProvider::Chatty, {}, username))
+    {
+        this->emplace<BadgeElement>(badge, MessageElementFlag::BadgeChatty);
+
+        /// e.g. "chatty:Chatty Developer"
+        this->message().externalBadges.emplace_back(badge->name.string);
+    }
+}
+
+void MessageBuilder::appendPurpleTVBadges(const QString &userID)
+{
+    for (const auto &badge : getApp()->getHomiesBadges()->getUserBadges(
+             HomiesProvider::PurpleTV, {userID}))
+    {
+        this->emplace<BadgeElement>(badge, MessageElementFlag::BadgePurpleTV);
+
+        /// e.g. "purpletv:n0pbreak"
+        this->message().externalBadges.emplace_back(badge->name.string);
+    }
+}
+
+void MessageBuilder::appendRTEBadges(const QString &userID)
+{
+    for (const auto &badge : getApp()->getHomiesBadges()->getUserBadges(
+             HomiesProvider::RTE, {userID}))
+    {
+        this->emplace<BadgeElement>(badge, MessageElementFlag::BadgeRTE);
+
+        /// e.g. "rte:86541948"
+        this->message().externalBadges.emplace_back(badge->name.string);
     }
 }
 

@@ -1175,6 +1175,31 @@ void GeneralPage::initLayout(GeneralPageView &layout)
         ->setTooltip("e.g. Chatterino Supporter/Contributor/Developer")
         ->addTo(layout);
 
+    SettingWidget::checkbox("Chatterino Homies", s.showBadgesChatterinoHomies)
+        ->addKeywords({"homies"})
+        ->setTooltip("Custom badges from Chatterino Homies")
+        ->addTo(layout);
+    SettingWidget::checkbox("DankChat", s.showBadgesDankChat)
+        ->addKeywords({"dankchat"})
+        ->setTooltip("Badges from DankChat")
+        ->addTo(layout);
+    SettingWidget::checkbox("Chatsen", s.showBadgesChatsen)
+        ->addKeywords({"chatsen"})
+        ->setTooltip("Badges from Chatsen")
+        ->addTo(layout);
+    SettingWidget::checkbox("Chatty", s.showBadgesChatty)
+        ->addKeywords({"chatty"})
+        ->setTooltip("Badges from Chatty")
+        ->addTo(layout);
+    SettingWidget::checkbox("PurpleTV", s.showBadgesPurpleTV)
+        ->addKeywords({"purpletv"})
+        ->setTooltip("Badges from PurpleTV")
+        ->addTo(layout);
+    SettingWidget::checkbox("ReYohoho", s.showBadgesRTE)
+        ->addKeywords({"rte", "reyohoho"})
+        ->setTooltip("Badges from ReYohoho Twitch Extension")
+        ->addTo(layout);
+
     SettingWidget::checkbox("FrankerFaceZ", s.showBadgesFfz)
         ->addKeywords({"ffz"})
         ->setTooltip("e.g. Bot, FrankerFaceZ supporter, FrankerFaceZ developer")

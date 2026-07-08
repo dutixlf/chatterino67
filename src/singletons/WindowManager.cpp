@@ -141,6 +141,12 @@ WindowManager::WindowManager(const Args &appArgs_, const Paths &paths,
     this->updateWordTypeMaskListener.add(settings.showBadgesSubscription);
     this->updateWordTypeMaskListener.add(settings.showBadgesVanity);
     this->updateWordTypeMaskListener.add(settings.showBadgesChatterino);
+    this->updateWordTypeMaskListener.add(settings.showBadgesChatterinoHomies);
+    this->updateWordTypeMaskListener.add(settings.showBadgesDankChat);
+    this->updateWordTypeMaskListener.add(settings.showBadgesChatsen);
+    this->updateWordTypeMaskListener.add(settings.showBadgesChatty);
+    this->updateWordTypeMaskListener.add(settings.showBadgesPurpleTV);
+    this->updateWordTypeMaskListener.add(settings.showBadgesRTE);
     this->updateWordTypeMaskListener.add(settings.showBadgesFfz);
     this->updateWordTypeMaskListener.add(settings.showBadgesBttv);
     this->updateWordTypeMaskListener.add(settings.showBadgesSevenTV);
@@ -243,6 +249,13 @@ void WindowManager::updateWordTypeMask()
     flags.set(settings->showBadgesVanity ? MEF::BadgeVanity : MEF::None);
     flags.set(settings->showBadgesChatterino ? MEF::BadgeChatterino
                                              : MEF::None);
+    flags.set(settings->showBadgesChatterinoHomies ? MEF::BadgeChatterinoHomies
+                                                   : MEF::None);
+    flags.set(settings->showBadgesDankChat ? MEF::BadgeDankChat : MEF::None);
+    flags.set(settings->showBadgesChatsen ? MEF::BadgeChatsen : MEF::None);
+    flags.set(settings->showBadgesChatty ? MEF::BadgeChatty : MEF::None);
+    flags.set(settings->showBadgesPurpleTV ? MEF::BadgePurpleTV : MEF::None);
+    flags.set(settings->showBadgesRTE ? MEF::BadgeRTE : MEF::None);
     flags.set(settings->showBadgesFfz ? MEF::BadgeFfz : MEF::None);
     flags.set(settings->showBadgesBttv ? MEF::BadgeBttv : MEF::None);
     flags.set(settings->showBadgesSevenTV ? MEF::BadgeSevenTV : MEF::None);
