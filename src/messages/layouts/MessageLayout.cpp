@@ -471,6 +471,10 @@ void MessageLayout::updateBuffer(QPixmap *buffer,
         backgroundColor = blendColors(
             backgroundColor, *ctx.colorProvider.color(ColorType::Subscription));
     }
+    else if (this->message_->flags.has(MessageFlag::Spam))
+    {
+        backgroundColor = blendColors(backgroundColor, QColor("#F08080"));
+    }
 
     painter.fillRect(buffer->rect(), backgroundColor);
 

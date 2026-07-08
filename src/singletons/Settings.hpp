@@ -410,6 +410,14 @@ public:
     IntSetting firstMessageMaxCount = {
         "/highlighting/firstMessageHighlight/maxCount", 0};
 
+    BoolSetting enableAntispam = {
+        "/highlighting/antispam/enabled", false};
+    IntSetting antispamThreshold = {
+        "/highlighting/antispam/threshold", 3};
+    IntSetting antispamWindowSeconds = {
+        "/highlighting/antispam/windowSeconds", 10};
+    QStringSetting antispamColor = {
+        "/highlighting/antispam/color", ""};
     BoolSetting alwaysIncludeBroadcasterInUserCompletions = {
         "/behaviour/autocompletion/alwaysIncludeBroadcasterInUserCompletions",
         true,

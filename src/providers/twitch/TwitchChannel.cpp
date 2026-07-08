@@ -2606,4 +2606,44 @@ void TwitchChannel::recordFirstMessage(const QString &userId)
     };
 }
 
+bool TwitchChannel::checkAntispam(const QString &text, const QString &userId)
+{
+    if (!getSettings()->enableAntispam)
+    {
+        return false;
+    }
+
+    auto threshold = getSettings()->antispamThreshold;
+    auto windowSecs = getSettings()->antispamWindowSeconds;
+    if (threshold <= 0 || windowSecs <= 0)
+    {
+        return false;
+    }
+
+    auto normalized = text.toLower().trimmed().simplified();
+    if (normalized.isEmpty() || normalized.length() < 3)
+    {
+        return false;
+    }
+
+    auto now = QDateTime::currentDateTime();
+    int matchCount = 0;
+
+    for (const auto &msg : this->recentMessages_)
+    {
+        if (msg.timestamp.secsTo(now) > windowSecs)
+        {
+            continue;
+        }
+        if (msg.normalizedText == normalized)
+        {
+            matchCount++;
+        }
+    }
+
+    this->recentMessages_.push_back({normalized, userId, now});
+
+    return matchCount >= threshold;
+}
+
 }  // namespace chatterino

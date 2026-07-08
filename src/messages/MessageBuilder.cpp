@@ -1857,6 +1857,11 @@ std::pair<MessagePtrMut, HighlightAlert> MessageBuilder::makeIrcMessage(
         builder->flags.set(MessageFlag::FirstMessage);
     }
 
+    if (twitchChannel && twitchChannel->checkAntispam(content, userID))
+    {
+        builder->flags.set(MessageFlag::Spam);
+    }
+
     if (tags.contains("pinned-chat-paid-amount"))
     {
         builder->flags.set(MessageFlag::ElevatedMessage);

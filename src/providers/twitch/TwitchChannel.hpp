@@ -17,6 +17,7 @@
 #include "util/QStringHash.hpp"
 #include "util/ThreadGuard.hpp"
 
+#include <boost/circular_buffer.hpp>
 #include <boost/circular_buffer/space_optimized.hpp>
 #include <IrcMessage>
 #include <pajlada/signals/signalholder.hpp>
@@ -618,9 +619,18 @@ private:
     };
     std::unordered_map<QString, NewbieTracker> newbieTracker_;
 
+    // ponytail: antispam tracking — recent messages for spam detection
+    struct RecentMessage {
+        QString normalizedText;
+        QString userId;
+        QDateTime timestamp;
+    };
+    boost::circular_buffer<RecentMessage> recentMessages_{100};
+
 public:
     bool shouldHighlightAsNewbie(const QString &userId);
     void recordFirstMessage(const QString &userId);
+    bool checkAntispam(const QString &text, const QString &userId);
 };
 
 }  // namespace chatterino
