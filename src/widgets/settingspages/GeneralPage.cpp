@@ -1509,6 +1509,18 @@ void GeneralPage::initLayout(GeneralPageView &layout)
                      "etc.) centered in chat instead of left-aligned.")
         ->addTo(layout);
 
+    SettingWidget::checkbox("Show title change banners in chat",
+                            s.showTitleChangeBanner)
+        ->setTooltip("Show a system message in chat when the streamer "
+                     "changes their stream title while live.")
+        ->addTo(layout);
+
+    SettingWidget::checkbox("Show category change banners in chat",
+                            s.showCategoryChangeBanner)
+        ->setTooltip("Show a system message in chat when the streamer "
+                     "changes their stream category while live.")
+        ->addTo(layout);
+
     SettingWidget::checkbox("Bold @usernames", s.boldUsernames)
         ->setTooltip("Bold @mentions to make them more noticeable.")
         ->addTo(layout);

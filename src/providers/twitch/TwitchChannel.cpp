@@ -602,8 +602,16 @@ void TwitchChannel::updateStreamStatus(
     if (helixStream)
     {
         auto stream = *helixStream;
+        QString oldTitle;
+        QString oldGame;
+        bool wasAlreadyLive = this->isLive();
         {
             auto status = this->streamStatus_.access();
+            if (wasAlreadyLive)
+            {
+                oldTitle = status->title;
+                oldGame = status->game;
+            }
             status->streamId = stream.id;
             status->viewerCount = stream.viewerCount;
             status->gameId = stream.gameId;
@@ -631,6 +639,25 @@ void TwitchChannel::updateStreamStatus(
         if (this->setLive(true))
         {
             this->onLiveStatusChanged(true, isInitialUpdate);
+        }
+        else if (wasAlreadyLive && !isInitialUpdate)
+        {
+            if (getSettings()->showTitleChangeBanner &&
+                !oldTitle.isEmpty() &&
+                oldTitle != stream.title)
+            {
+                this->addSystemMessage(
+                    QStringLiteral("Title changed: %1 → %2")
+                        .arg(oldTitle, stream.title));
+            }
+            if (getSettings()->showCategoryChangeBanner &&
+                !oldGame.isEmpty() &&
+                oldGame != stream.gameName)
+            {
+                this->addSystemMessage(
+                    QStringLiteral("Category changed: %1 → %2")
+                        .arg(oldGame, stream.gameName));
+            }
         }
         this->streamStatusChanged.invoke();
     }

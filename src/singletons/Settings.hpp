@@ -399,6 +399,12 @@ public:
 
     BoolSetting centerSystemMessages = {
         "/appearance/centerSystemMessages", false};
+
+    BoolSetting showTitleChangeBanner = {
+        "/appearance/showTitleChangeBanner", true};
+    BoolSetting showCategoryChangeBanner = {
+        "/appearance/showCategoryChangeBanner", true};
+
     BoolSetting alwaysIncludeBroadcasterInUserCompletions = {
         "/behaviour/autocompletion/alwaysIncludeBroadcasterInUserCompletions",
         true,
