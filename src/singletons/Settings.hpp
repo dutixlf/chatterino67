@@ -405,6 +405,11 @@ public:
     BoolSetting showCategoryChangeBanner = {
         "/appearance/showCategoryChangeBanner", true};
 
+    IntSetting firstMessageTimeoutMinutes = {
+        "/highlighting/firstMessageHighlight/timeoutMinutes", 5};
+    IntSetting firstMessageMaxCount = {
+        "/highlighting/firstMessageHighlight/maxCount", 0};
+
     BoolSetting alwaysIncludeBroadcasterInUserCompletions = {
         "/behaviour/autocompletion/alwaysIncludeBroadcasterInUserCompletions",
         true,

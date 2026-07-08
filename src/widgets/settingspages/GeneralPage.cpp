@@ -1521,6 +1521,21 @@ void GeneralPage::initLayout(GeneralPageView &layout)
                      "changes their stream category while live.")
         ->addTo(layout);
 
+    SettingWidget::intInput("Newbie highlight timeout (minutes)",
+                            s.firstMessageTimeoutMinutes,
+                            {.min = 0, .max = 120})
+        ->setTooltip("Highlight messages from new viewers for this many "
+                     "minutes after their first message. 0 = only first "
+                     "message. Default: 5")
+        ->addTo(layout);
+
+    SettingWidget::intInput("Newbie highlight max messages",
+                            s.firstMessageMaxCount,
+                            {.min = 0, .max = 100})
+        ->setTooltip("Maximum number of messages to highlight from a new "
+                     "viewer. 0 = unlimited (use timeout only). Default: 0")
+        ->addTo(layout);
+
     SettingWidget::checkbox("Bold @usernames", s.boldUsernames)
         ->setTooltip("Bold @mentions to make them more noticeable.")
         ->addTo(layout);

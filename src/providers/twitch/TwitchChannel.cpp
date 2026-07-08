@@ -2551,4 +2551,59 @@ bool TwitchChannel::isLoadingRecentMessages() const
     return this->loadingRecentMessages_.test();
 }
 
+bool TwitchChannel::shouldHighlightAsNewbie(const QString &userId)
+{
+    if (userId.isEmpty())
+    {
+        return false;
+    }
+
+    auto timeoutMinutes = getSettings()->firstMessageTimeoutMinutes;
+    auto maxCount = getSettings()->firstMessageMaxCount;
+
+    if (timeoutMinutes <= 0 && maxCount <= 0)
+    {
+        return false;
+    }
+
+    auto it = this->newbieTracker_.find(userId);
+    if (it == this->newbieTracker_.end())
+    {
+        return false;
+    }
+
+    auto &entry = it->second;
+
+    if (maxCount > 0 && entry.messageCount >= maxCount)
+    {
+        this->newbieTracker_.erase(it);
+        return false;
+    }
+
+    if (timeoutMinutes > 0)
+    {
+        auto elapsed = entry.firstMessageTime.secsTo(QDateTime::currentDateTime());
+        if (elapsed > timeoutMinutes * 60)
+        {
+            this->newbieTracker_.erase(it);
+            return false;
+        }
+    }
+
+    entry.messageCount++;
+    return true;
+}
+
+void TwitchChannel::recordFirstMessage(const QString &userId)
+{
+    if (userId.isEmpty())
+    {
+        return;
+    }
+    this->newbieTracker_[userId] = {
+        QDateTime::currentDateTime(),
+        1,
+    };
+}
+
 }  // namespace chatterino

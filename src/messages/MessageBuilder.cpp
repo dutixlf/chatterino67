@@ -1846,6 +1846,15 @@ std::pair<MessagePtrMut, HighlightAlert> MessageBuilder::makeIrcMessage(
     if (tags.contains("first-msg") && tags["first-msg"].toString() == "1")
     {
         builder->flags.set(MessageFlag::FirstMessage);
+        if (twitchChannel)
+        {
+            twitchChannel->recordFirstMessage(userID);
+        }
+    }
+    else if (twitchChannel &&
+             twitchChannel->shouldHighlightAsNewbie(userID))
+    {
+        builder->flags.set(MessageFlag::FirstMessage);
     }
 
     if (tags.contains("pinned-chat-paid-amount"))

@@ -610,6 +610,17 @@ private:
     QTimer sendWaitTimer_;
     // Timepoint at which the user can send messages again
     std::optional<std::chrono::steady_clock::time_point> sendWaitEnd_;
+
+    // ponytail: newbie tracking — first message time per user
+    struct NewbieTracker {
+        QDateTime firstMessageTime;
+        int messageCount = 0;
+    };
+    std::unordered_map<QString, NewbieTracker> newbieTracker_;
+
+public:
+    bool shouldHighlightAsNewbie(const QString &userId);
+    void recordFirstMessage(const QString &userId);
 };
 
 }  // namespace chatterino
