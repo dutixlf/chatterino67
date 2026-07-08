@@ -28,6 +28,12 @@ class AccountController;
 enum class MessageFlag : std::int64_t;
 using MessageFlags = FlagsEnum<MessageFlag>;
 
+/**
+ * @brief Returns true if the given message is a reply to a message sent by the current user.
+ * @note ponytail: single-purpose helper, lives here because both Twitch and Kick message builders use it
+ */
+[[nodiscard]] bool isReplyToCurrentUser(const Message &message);
+
 class HighlightController final
 {
 public:

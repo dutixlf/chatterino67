@@ -410,6 +410,15 @@ HighlightAlert processHighlights(KickMessageBuilder &builder,
         builder->flags.set(MessageFlag::ShowInMentions);
     }
 
+    // ponytail: subscribed-thread replies only ping when replying to the current user
+    if (builder->flags.has(MessageFlag::SubscribedThread) &&
+        !isReplyToCurrentUser(builder.message()))
+    {
+        highlightResult.playSound = false;
+        highlightResult.alert = false;
+        highlightResult.customSoundUrl = std::nullopt;
+    }
+
     return {
         .customSound = highlightResult.customSoundUrl.value_or(QUrl{}),
         .playSound = highlightResult.playSound,

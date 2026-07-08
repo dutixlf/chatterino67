@@ -383,6 +383,30 @@ void rebuildBadgeHighlights(Settings &settings,
 
 namespace chatterino {
 
+bool isReplyToCurrentUser(const Message &message)
+{
+    if (!message.replyParent)
+    {
+        return false;
+    }
+
+    const auto &parent = message.replyParent;
+    switch (message.platform)
+    {
+        case MessagePlatform::AnyOrTwitch: {
+            auto currentUser = getApp()->getAccounts()->twitch.getCurrent();
+            return parent->loginName == currentUser->getUserName();
+        }
+        case MessagePlatform::Kick: {
+            auto kickUser = getApp()->getAccounts()->kick.current();
+            return !kickUser->isAnonymous() &&
+                   parent->loginName == kickUser->username();
+        }
+    }
+
+    return false;  // unreachable
+}
+
 HighlightController::HighlightController(Settings &settings,
                                          AccountController *accounts)
 {

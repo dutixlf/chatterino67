@@ -2443,6 +2443,15 @@ HighlightAlert MessageBuilder::parseHighlights(const QVariantMap &tags,
         this->message().flags.set(MessageFlag::ShowInMentions);
     }
 
+    // ponytail: subscribed-thread replies only ping when replying to the current user
+    if (this->message().flags.has(MessageFlag::SubscribedThread) &&
+        !isReplyToCurrentUser(this->message()))
+    {
+        highlightResult.playSound = false;
+        highlightResult.alert = false;
+        highlightResult.customSoundUrl = std::nullopt;
+    }
+
     auto customSound = [&] {
         if (highlightResult.customSoundUrl)
         {
