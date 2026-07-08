@@ -3,6 +3,7 @@
 ## Unversioned
 
 - Minor: Added "Open 7TV user in browser" and "Open channel in browser" (same as left-click) when right-clicking the profile picture in a usercard (#400)
+- Minor: Unlisted 7TV emotes are now shown by default.
 
 ## 7.5.5-beta.1
 

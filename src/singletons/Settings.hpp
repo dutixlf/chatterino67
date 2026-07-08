@@ -433,7 +433,8 @@ public:
         EmoteTooltipScale::Medium,
     };
     BoolSetting showUnlistedSevenTVEmotes = {
-        "/emotes/showUnlistedSevenTVEmotes", false};
+        // ponytail: default true so unlisted 7TV emotes (e.g. УВОЖЕНИЕ) render out of the box
+        "/emotes/showUnlistedSevenTVEmotes", true};
     /**
      * This setting is kept for backwards compatibility.
      */
