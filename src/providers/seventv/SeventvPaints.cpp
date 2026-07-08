@@ -212,17 +212,18 @@ void SeventvPaints::assignPaintToUsers(
     };
     for (const auto &user : users)
     {
-        std::visit(variant::Overloaded{
-                       [&](const seventv::eventapi::TwitchUser &u) {
-                           addToMap(this->twitchPaintMap_, u.userName);
-                           rawAssignmentsCache_.append({u.userName, paintID, false});
-                       },
-                       [&](const seventv::eventapi::KickUser &u) {
-                           addToMap(this->kickPaintMap_, u.userName);
-                           rawAssignmentsCache_.append({u.userName, paintID, true});
-                       },
-                   },
-                   user);
+        std::visit(
+            variant::Overloaded{
+                [&](const seventv::eventapi::TwitchUser &u) {
+                    addToMap(this->twitchPaintMap_, u.userName);
+                    rawAssignmentsCache_.append({u.userName, paintID, false});
+                },
+                [&](const seventv::eventapi::KickUser &u) {
+                    addToMap(this->kickPaintMap_, u.userName);
+                    rawAssignmentsCache_.append({u.userName, paintID, true});
+                },
+            },
+            user);
     }
 
     if (nAdded > 0)
@@ -302,56 +303,52 @@ void SeventvPaints::serializeCache() const
     }
     root["assignments"] = assignmentsArray;
 
-    writeProviderEmotesCache("seventv-paints", "cache",
-                             QJsonDocument(root).toJson(QJsonDocument::Compact));
+    writeProviderEmotesCache(
+        "seventv-paints", "cache",
+        QJsonDocument(root).toJson(QJsonDocument::Compact));
 }
 
 void SeventvPaints::loadCache()
 {
-    readProviderEmotesCache("seventv-paints", "cache",
-                            [this](const QJsonDocument &doc) {
-                                auto root = doc.object();
-                                auto paints = root["paints"].toArray();
-                                for (const auto &paintVal : paints)
-                                {
-                                    this->addPaint(paintVal.toObject());
-                                }
+    readProviderEmotesCache(
+        "seventv-paints", "cache", [this](const QJsonDocument &doc) {
+            auto root = doc.object();
+            auto paints = root["paints"].toArray();
+            for (const auto &paintVal : paints)
+            {
+                this->addPaint(paintVal.toObject());
+            }
 
-                                auto assignments = root["assignments"].toArray();
-                                for (const auto &assignVal : assignments)
-                                {
-                                    auto entry = assignVal.toObject();
-                                    auto username = entry["username"].toString();
-                                    auto paintID = entry["paintID"].toString();
-                                    bool isKick = entry["kick"].toBool();
+            auto assignments = root["assignments"].toArray();
+            for (const auto &assignVal : assignments)
+            {
+                auto entry = assignVal.toObject();
+                auto username = entry["username"].toString();
+                auto paintID = entry["paintID"].toString();
+                bool isKick = entry["kick"].toBool();
 
-                                    std::unique_lock lock(this->mutex_);
-                                    const auto paintIt =
-                                        this->knownPaints_.find(paintID);
-                                    if (paintIt != this->knownPaints_.end())
-                                    {
-                                        if (isKick)
-                                        {
-                                            this->kickPaintMap_[username] =
-                                                paintIt->second;
-                                        }
-                                        else
-                                        {
-                                            this->twitchPaintMap_[username] =
-                                                paintIt->second;
-                                        }
-                                    }
-                                }
+                std::unique_lock lock(this->mutex_);
+                const auto paintIt = this->knownPaints_.find(paintID);
+                if (paintIt != this->knownPaints_.end())
+                {
+                    if (isKick)
+                    {
+                        this->kickPaintMap_[username] = paintIt->second;
+                    }
+                    else
+                    {
+                        this->twitchPaintMap_[username] = paintIt->second;
+                    }
+                }
+            }
 
-                                if (!paints.isEmpty() || !assignments.isEmpty())
-                                {
-                                    qCDebug(chatterinoCache)
-                                        << "Loaded 7TV paints cache:"
-                                        << paints.size() << "paints,"
-                                        << assignments.size()
-                                        << "assignments";
-                                }
-                            });
+            if (!paints.isEmpty() || !assignments.isEmpty())
+            {
+                qCDebug(chatterinoCache)
+                    << "Loaded 7TV paints cache:" << paints.size() << "paints,"
+                    << assignments.size() << "assignments";
+            }
+        });
 }
 
 }  // namespace chatterino

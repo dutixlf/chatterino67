@@ -330,8 +330,8 @@ void Updates::checkForUpdates()
     auto *self = this;
 
     // Step 1: Get latest commit SHA from the branch
-    auto commitUrl = u"https://api.github.com/repos/"_s %
-                     GITHUB_REPO % u"/commits/"_s % GITHUB_BRANCH;
+    auto commitUrl = u"https://api.github.com/repos/"_s % GITHUB_REPO %
+                     u"/commits/"_s % GITHUB_BRANCH;
     qCDebug(chatterinoUpdate) << "Requesting latest commit from" << commitUrl;
 
     NetworkRequest(commitUrl)
@@ -373,8 +373,8 @@ void Updates::checkForUpdates()
 void Updates::fetchReleaseAssets()
 {
     auto *self = this;
-    auto releaseUrl = u"https://api.github.com/repos/"_s %
-                      GITHUB_REPO % u"/releases/tags/"_s % NIGHTLY_TAG;
+    auto releaseUrl = u"https://api.github.com/repos/"_s % GITHUB_REPO %
+                      u"/releases/tags/"_s % NIGHTLY_TAG;
     qCDebug(chatterinoUpdate) << "Requesting release assets from" << releaseUrl;
 
     NetworkRequest(releaseUrl)
@@ -396,7 +396,7 @@ void Updates::fetchReleaseAssets()
                 auto url = asset["browser_download_url"].toString();
 
 #if defined(Q_OS_WIN)
-    #ifdef Q_PROCESSOR_ARM
+#    ifdef Q_PROCESSOR_ARM
                 if (name.contains("ARM64", Qt::CaseInsensitive) &&
                     name.contains("Installer", Qt::CaseInsensitive) &&
                     name.endsWith(".exe"))
@@ -409,7 +409,7 @@ void Updates::fetchReleaseAssets()
                 {
                     portableUrl = url;
                 }
-    #else
+#    else
                 if (!name.contains("ARM64", Qt::CaseInsensitive) &&
                     name.contains("Installer", Qt::CaseInsensitive) &&
                     name.endsWith(".exe"))
@@ -422,7 +422,7 @@ void Updates::fetchReleaseAssets()
                 {
                     portableUrl = url;
                 }
-    #endif
+#    endif
                 if (name.contains("windows", Qt::CaseInsensitive) &&
                     name.endsWith(".zip") && rawWindowsUrl.isEmpty())
                 {
@@ -455,8 +455,7 @@ void Updates::fetchReleaseAssets()
             self->updateGuideLink_ =
                 u"https://github.com/"_s % GITHUB_REPO % u"/releases"_s;
 
-            if (self->updateExe_.isEmpty() &&
-                self->updatePortable_.isEmpty())
+            if (self->updateExe_.isEmpty() && self->updatePortable_.isEmpty())
             {
                 self->setStatus_(SearchFailed);
                 return;
@@ -525,7 +524,7 @@ QString Updates::buildUpdateAvailableText() const
     if (version.isNightly())
     {
         return QString("A new nightly build (%1) is available.\n\n"
-                        "Do you want to download and install it?")
+                       "Do you want to download and install it?")
             .arg(this->getOnlineVersion());
     }
 

@@ -1851,8 +1851,7 @@ std::pair<MessagePtrMut, HighlightAlert> MessageBuilder::makeIrcMessage(
             twitchChannel->recordFirstMessage(userID);
         }
     }
-    else if (twitchChannel &&
-             twitchChannel->shouldHighlightAsNewbie(userID))
+    else if (twitchChannel && twitchChannel->shouldHighlightAsNewbie(userID))
     {
         builder->flags.set(MessageFlag::FirstMessage);
     }

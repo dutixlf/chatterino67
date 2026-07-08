@@ -1503,8 +1503,7 @@ void GeneralPage::initLayout(GeneralPageView &layout)
                      "streamer updates their title.")
         ->addTo(layout);
 
-    SettingWidget::checkbox("Center system messages",
-                            s.centerSystemMessages)
+    SettingWidget::checkbox("Center system messages", s.centerSystemMessages)
         ->setTooltip("Display system messages (timeouts, bans, connections, "
                      "etc.) centered in chat instead of left-aligned.")
         ->addTo(layout);
@@ -1530,30 +1529,26 @@ void GeneralPage::initLayout(GeneralPageView &layout)
         ->addTo(layout);
 
     SettingWidget::intInput("Newbie highlight max messages",
-                            s.firstMessageMaxCount,
-                            {.min = 0, .max = 100})
+                            s.firstMessageMaxCount, {.min = 0, .max = 100})
         ->setTooltip("Maximum number of messages to highlight from a new "
                      "viewer. 0 = unlimited (use timeout only). Default: 0")
         ->addTo(layout);
 
     layout.addTitle("Antispam (Experimental)");
 
-    SettingWidget::checkbox("Enable antispam detection",
-                            s.enableAntispam)
+    SettingWidget::checkbox("Enable antispam detection", s.enableAntispam)
         ->setTooltip("Detects and highlights spam messages (repeated identical "
                      "messages from one or multiple users).")
         ->addTo(layout);
 
     SettingWidget::intInput("Antispam threshold (messages)",
-                            s.antispamThreshold,
-                            {.min = 2, .max = 50})
+                            s.antispamThreshold, {.min = 2, .max = 50})
         ->setTooltip("Number of similar messages needed to trigger spam "
                      "detection. Default: 3")
         ->addTo(layout);
 
     SettingWidget::intInput("Antispam time window (seconds)",
-                            s.antispamWindowSeconds,
-                            {.min = 1, .max = 300})
+                            s.antispamWindowSeconds, {.min = 1, .max = 300})
         ->setTooltip("Time window in seconds to check for repeated messages. "
                      "Default: 10")
         ->addTo(layout);

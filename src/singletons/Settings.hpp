@@ -397,11 +397,11 @@ public:
     BoolSetting showCommandCompletionMenu = {
         "/behaviour/autocompletion/showCommandCompletionMenu", true};
 
-    BoolSetting centerSystemMessages = {
-        "/appearance/centerSystemMessages", false};
+    BoolSetting centerSystemMessages = {"/appearance/centerSystemMessages",
+                                        false};
 
-    BoolSetting showTitleChangeBanner = {
-        "/appearance/showTitleChangeBanner", true};
+    BoolSetting showTitleChangeBanner = {"/appearance/showTitleChangeBanner",
+                                         true};
     BoolSetting showCategoryChangeBanner = {
         "/appearance/showCategoryChangeBanner", true};
 
@@ -410,14 +410,11 @@ public:
     IntSetting firstMessageMaxCount = {
         "/highlighting/firstMessageHighlight/maxCount", 0};
 
-    BoolSetting enableAntispam = {
-        "/highlighting/antispam/enabled", false};
-    IntSetting antispamThreshold = {
-        "/highlighting/antispam/threshold", 3};
-    IntSetting antispamWindowSeconds = {
-        "/highlighting/antispam/windowSeconds", 10};
-    QStringSetting antispamColor = {
-        "/highlighting/antispam/color", ""};
+    BoolSetting enableAntispam = {"/highlighting/antispam/enabled", false};
+    IntSetting antispamThreshold = {"/highlighting/antispam/threshold", 3};
+    IntSetting antispamWindowSeconds = {"/highlighting/antispam/windowSeconds",
+                                        10};
+    QStringSetting antispamColor = {"/highlighting/antispam/color", ""};
     BoolSetting alwaysIncludeBroadcasterInUserCompletions = {
         "/behaviour/autocompletion/alwaysIncludeBroadcasterInUserCompletions",
         true,

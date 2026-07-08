@@ -642,16 +642,13 @@ void TwitchChannel::updateStreamStatus(
         }
         else if (wasAlreadyLive && !isInitialUpdate)
         {
-            if (getSettings()->showTitleChangeBanner &&
-                !oldTitle.isEmpty() &&
+            if (getSettings()->showTitleChangeBanner && !oldTitle.isEmpty() &&
                 oldTitle != stream.title)
             {
-                this->addSystemMessage(
-                    QStringLiteral("Title changed: %1 → %2")
-                        .arg(oldTitle, stream.title));
+                this->addSystemMessage(QStringLiteral("Title changed: %1 → %2")
+                                           .arg(oldTitle, stream.title));
             }
-            if (getSettings()->showCategoryChangeBanner &&
-                !oldGame.isEmpty() &&
+            if (getSettings()->showCategoryChangeBanner && !oldGame.isEmpty() &&
                 oldGame != stream.gameName)
             {
                 this->addSystemMessage(
@@ -2582,7 +2579,8 @@ bool TwitchChannel::shouldHighlightAsNewbie(const QString &userId)
 
     if (timeoutMinutes > 0)
     {
-        auto elapsed = entry.firstMessageTime.secsTo(QDateTime::currentDateTime());
+        auto elapsed =
+            entry.firstMessageTime.secsTo(QDateTime::currentDateTime());
         if (elapsed > timeoutMinutes * 60)
         {
             this->newbieTracker_.erase(it);

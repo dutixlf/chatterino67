@@ -6,8 +6,8 @@
 
 #include "common/Aliases.hpp"
 
-#include <QJsonObject>
 #include <QHash>
+#include <QJsonObject>
 #include <QVector>
 
 #include <shared_mutex>

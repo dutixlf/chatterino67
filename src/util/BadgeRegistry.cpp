@@ -79,17 +79,19 @@ void BadgeRegistry::assignBadgeToUsers(
     }
     for (const auto &user : users)
     {
-        std::visit(variant::Overloaded{
-                       [&](const seventv::eventapi::TwitchUser &u) {
-                           this->badgeMap_[u.id] = badgeIt->second;
-                           rawBadgeAssignmentsCache_.append({u.id, badgeID, false});
-                       },
-                       [&](const seventv::eventapi::KickUser &u) {
-                           this->kickBadgeMap_[u.id] = badgeIt->second;
-                           rawBadgeAssignmentsCache_.append({QString::number(u.id), badgeID, true});
-                       },
-                   },
-                   user);
+        std::visit(
+            variant::Overloaded{
+                [&](const seventv::eventapi::TwitchUser &u) {
+                    this->badgeMap_[u.id] = badgeIt->second;
+                    rawBadgeAssignmentsCache_.append({u.id, badgeID, false});
+                },
+                [&](const seventv::eventapi::KickUser &u) {
+                    this->kickBadgeMap_[u.id] = badgeIt->second;
+                    rawBadgeAssignmentsCache_.append(
+                        {QString::number(u.id), badgeID, true});
+                },
+            },
+            user);
     }
 }
 
@@ -160,7 +162,8 @@ void BadgeRegistry::serializeCache() const
     root["badges"] = badgesArray;
 
     QJsonArray assignmentsArray;
-    for (const auto &[userId, badgeID, isKick] : this->rawBadgeAssignmentsCache_)
+    for (const auto &[userId, badgeID, isKick] :
+         this->rawBadgeAssignmentsCache_)
     {
         QJsonObject entry;
         entry["userId"] = userId;
@@ -170,46 +173,46 @@ void BadgeRegistry::serializeCache() const
     }
     root["assignments"] = assignmentsArray;
 
-    writeProviderEmotesCache(cacheProviderName(), "cache",
-                             QJsonDocument(root).toJson(QJsonDocument::Compact));
+    writeProviderEmotesCache(
+        cacheProviderName(), "cache",
+        QJsonDocument(root).toJson(QJsonDocument::Compact));
 }
 
 void BadgeRegistry::loadCache()
 {
-    readProviderEmotesCache(cacheProviderName(), "cache",
-                            [this](const QJsonDocument &doc) {
-                                auto root = doc.object();
-                                auto badges = root["badges"].toArray();
-                                for (const auto &badgeVal : badges)
-                                {
-                                    this->registerBadge(badgeVal.toObject());
-                                }
+    readProviderEmotesCache(
+        cacheProviderName(), "cache", [this](const QJsonDocument &doc) {
+            auto root = doc.object();
+            auto badges = root["badges"].toArray();
+            for (const auto &badgeVal : badges)
+            {
+                this->registerBadge(badgeVal.toObject());
+            }
 
-                                auto assignments = root["assignments"].toArray();
-                                for (const auto &assignVal : assignments)
-                                {
-                                    auto entry = assignVal.toObject();
-                                    auto userId = entry["userId"].toString();
-                                    auto badgeID = entry["badgeID"].toString();
-                                    bool isKick = entry["kick"].toBool();
+            auto assignments = root["assignments"].toArray();
+            for (const auto &assignVal : assignments)
+            {
+                auto entry = assignVal.toObject();
+                auto userId = entry["userId"].toString();
+                auto badgeID = entry["badgeID"].toString();
+                bool isKick = entry["kick"].toBool();
 
-                                    std::unique_lock lock(this->mutex_);
-                                    const auto badgeIt =
-                                        this->knownBadges_.find(badgeID);
-                                    if (badgeIt != this->knownBadges_.end())
-                                    {
-                                        if (isKick)
-                                        {
-                                            this->kickBadgeMap_[userId.toULongLong()] =
-                                                badgeIt->second;
-                                        }
-                                        else
-                                        {
-                                            this->badgeMap_[userId] = badgeIt->second;
-                                        }
-                                    }
-                                }
-                            });
+                std::unique_lock lock(this->mutex_);
+                const auto badgeIt = this->knownBadges_.find(badgeID);
+                if (badgeIt != this->knownBadges_.end())
+                {
+                    if (isKick)
+                    {
+                        this->kickBadgeMap_[userId.toULongLong()] =
+                            badgeIt->second;
+                    }
+                    else
+                    {
+                        this->badgeMap_[userId] = badgeIt->second;
+                    }
+                }
+            }
+        });
 }
 
 }  // namespace chatterino
