@@ -330,11 +330,11 @@ void Updates::checkForUpdates()
     auto *self = this;
 
     // Step 1: Get latest commit SHA from the branch
-    auto commitUrl = u"https://api.github.com/repos/"_s % GITHUB_REPO %
-                     u"/commits/"_s % GITHUB_BRANCH;
+    auto commitUrl = QString(u"https://api.github.com/repos/"_s % GITHUB_REPO %
+                             u"/commits/"_s % GITHUB_BRANCH);
     qCDebug(chatterinoUpdate) << "Requesting latest commit from" << commitUrl;
 
-    NetworkRequest(commitUrl)
+    NetworkRequest(QUrl(commitUrl))
         .header("Accept", "application/vnd.github+json")
         .timeout(60000)
         .followRedirects(true)
@@ -373,11 +373,11 @@ void Updates::checkForUpdates()
 void Updates::fetchReleaseAssets()
 {
     auto *self = this;
-    auto releaseUrl = u"https://api.github.com/repos/"_s % GITHUB_REPO %
-                      u"/releases/tags/"_s % NIGHTLY_TAG;
+    auto releaseUrl = QString(u"https://api.github.com/repos/"_s % GITHUB_REPO %
+                              u"/releases/tags/"_s % NIGHTLY_TAG);
     qCDebug(chatterinoUpdate) << "Requesting release assets from" << releaseUrl;
 
-    NetworkRequest(releaseUrl)
+    NetworkRequest(QUrl(releaseUrl))
         .header("Accept", "application/vnd.github+json")
         .timeout(60000)
         .followRedirects(true)
