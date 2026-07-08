@@ -76,6 +76,8 @@ private:
 
     void setStatus_(Status status);
 
+    void fetchReleaseAssets();
+
     std::vector<std::unique_ptr<pajlada::Signals::ScopedConnection>>
         managedConnections;
 };

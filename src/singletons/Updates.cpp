@@ -29,42 +29,20 @@ namespace {
 using namespace chatterino;
 using namespace literals;
 
-QString currentBranch()
+constexpr auto GITHUB_REPO = "dutixlf/chatterino67";
+constexpr auto GITHUB_BRANCH = "chatterino67";
+constexpr auto NIGHTLY_TAG = "nightly-build";
+
+bool shortHashMatches(const QString &remoteSha, const QString &localHash)
 {
-    return getSettings()->betaUpdates ? "beta" : "stable";
-}
-
-#if defined(Q_OS_WIN)
-const QString CHATTERINO_OS = u"win"_s;
-#elif defined(Q_OS_MACOS)
-const QString CHATTERINO_OS = u"macos"_s;
-#elif defined(Q_OS_LINUX)
-const QString CHATTERINO_OS = u"linux"_s;
-#elif defined(Q_OS_FREEBSD)
-const QString CHATTERINO_OS = u"freebsd"_s;
-#else
-const QString CHATTERINO_OS = u"unknown"_s;
-#endif
-
-QJsonValue getForArchitecture(const QJsonObject &obj, const QString &key)
-{
-    auto val = obj[key];
-
-#ifdef Q_PROCESSOR_ARM
-    QString armKey = key % u"_arm";
-    if (obj[armKey].isString())
+    if (remoteSha.isEmpty() || localHash.isEmpty())
     {
-        val = obj[armKey];
+        return false;
     }
-#elifdef Q_PROCESSOR_X86
-    QString x86Key = key % u"_x86";
-    if (obj[x86Key].isString())
-    {
-        val = obj[x86Key];
-    }
-#endif
-
-    return val;
+    // localHash from git rev-parse --short HEAD (7 chars typically)
+    // remoteSha is first 7 chars of full SHA
+    return remoteSha.compare(localHash.left(remoteSha.length()),
+                             Qt::CaseInsensitive) == 0;
 }
 
 }  // namespace
@@ -85,22 +63,17 @@ Updates::Updates(const Paths &paths_, Settings &settings)
         this->managedConnections, false);
 }
 
-/// Checks if the online version is newer or older than the current version.
 bool Updates::isDowngradeOf(const QString &online, const QString &current)
 {
     semver::version onlineVersion;
     if (!onlineVersion.from_string_noexcept(online.toStdString()))
     {
-        qCWarning(chatterinoUpdate) << "Unable to parse online version"
-                                    << online << "into a proper semver string";
         return false;
     }
 
     semver::version currentVersion;
     if (!currentVersion.from_string_noexcept(current.toStdString()))
     {
-        qCWarning(chatterinoUpdate) << "Unable to parse current version"
-                                    << current << "into a proper semver string";
         return false;
     }
 
@@ -152,10 +125,7 @@ void Updates::installUpdates()
 
     if (Version::instance().isNightly())
     {
-        // Since Nightly builds can be installed in many different ways, we ask the user to download the update manually.
-        QDesktopServices::openUrl(
-            QUrl("https://github.com/SevenTV/chatterino7/releases"));
-        return;
+        // ponytail: nightly builds use in-app updater, not browser
     }
 
 #ifdef Q_OS_MACOS
@@ -293,7 +263,6 @@ void Updates::installUpdates()
                     combinePath(this->paths.miscDirectory, "Update.exe");
 
                 QFile file(filePath);
-                // write() will fail if we couldn't open
                 std::ignore =
                     file.open(QIODevice::Truncate | QIODevice::WriteOnly);
 
@@ -353,133 +322,152 @@ void Updates::checkForUpdates()
         return;
     }
 
-    // Disable updates on Flatpak
     if (version.isFlatpak())
     {
         return;
     }
 
-    // See https://github.com/SevenTV/SevenTV/issues/48#issue-2193272289
-    // for the proposed structure of the response.
-    auto onSuccess = [this](const NetworkResult &result) {
-        const auto object = result.parseJson();
-        if (object.empty())
-        {
-            return;  // this should only happen on the v4 url as it's not really mapped
-        }
+    auto *self = this;
 
-        /// Version available on every platform
-        auto version = object["version"];
-        if (object["v2_version"_L1].isString())
-        {
-            version = object["v2_version"_L1].toString();
-        }
+    // Step 1: Get latest commit SHA from the branch
+    auto commitUrl = u"https://api.github.com/repos/"_s %
+                     GITHUB_REPO % u"/commits/"_s % GITHUB_BRANCH;
+    qCDebug(chatterinoUpdate) << "Requesting latest commit from" << commitUrl;
 
-        if (!version.isString())
-        {
-            this->setStatus_(SearchFailed);
-            qCDebug(chatterinoUpdate)
-                << "error checking version - missing 'version'" << object;
-            return;
-        }
+    NetworkRequest(commitUrl)
+        .header("Accept", "application/vnd.github+json")
+        .timeout(60000)
+        .followRedirects(true)
+        .onSuccess([self](const NetworkResult &result) {
+            const auto obj = result.parseJson();
+            auto sha = obj["sha"].toString();
+            if (sha.isEmpty())
+            {
+                self->setStatus_(SearchFailed);
+                return;
+            }
 
-#    if defined(Q_OS_WIN) || defined(Q_OS_MACOS)
-        /// Downloads an installer for the new version
-        auto updateExeUrl = getForArchitecture(object, u"updateexe"_s);
-        if (!updateExeUrl.isString())
-        {
-            this->setStatus_(SearchFailed);
-            qCDebug(chatterinoUpdate)
-                << "error checking version - missing 'updateexe'" << object;
-            return;
-        }
+            auto shortSha = sha.left(7);
+            auto currentHash = Version::instance().commitHash();
 
-        this->updateExe_ = updateExeUrl.toString();
+            if (shortHashMatches(shortSha, currentHash))
+            {
+                self->setStatus_(NoUpdateAvailable);
+                return;
+            }
 
-#        ifdef Q_OS_WIN
-        /// Windows portable
-        auto portableUrl = getForArchitecture(object, "portable_download");
-        if (!portableUrl.isString())
-        {
-            this->setStatus_(SearchFailed);
-            qCDebug(chatterinoUpdate)
-                << "error checking version - missing 'portable_download'"
-                << object;
-            return;
-        }
-        this->updatePortable_ = portableUrl.toString();
-#        endif
+            self->onlineVersion_ = shortSha;
 
-#    elif defined(Q_OS_LINUX)
-        QJsonValue updateGuide = object.value("updateguide");
-        if (updateGuide.isString())
-        {
-            this->updateGuideLink_ = updateGuide.toString();
-        }
-#    else
-        return;
-#    endif
-
-        /// Current version
-        this->onlineVersion_ = version.toString();
-
-        /// Update available :)
-        // 7TV: Don't treat downgrades as updates.
-        if (this->currentVersion_ != this->onlineVersion_ &&
-            !Updates::isDowngradeOf(this->onlineVersion_,
-                                    this->currentVersion_))
-        {
-            this->setStatus_(UpdateAvailable);
-        }
-        else
-        {
-            this->setStatus_(NoUpdateAvailable);
-        }
-    };
-
-    // We're trying v3, ~~and v4~~ to get updates.
-    // The first successful one will be used
-    auto apiVersion = std::make_shared<uint8_t>(3);
-    constexpr auto maxApiVersion =
-        3;  // don't try v4 yet (we don't know the API scheme yet)
-    auto fmtUrl = [apiVersion]() -> QString {
-        return u"https://7tv.io/v" % QString::number(*apiVersion) %
-               "/chatterino/version/" % CHATTERINO_OS % "/" % currentBranch();
-    };
-
-    auto onError = std::make_shared<std::function<void(NetworkResult)>>();
-    // We need to avoid cyclic ownership, so we pass onError as a weak pointer.
-    // During the request, it's kept alive by the finally handler, which will
-    // always be called after onError and onSuccess.
-    auto makeRequest = [onSuccess,
-                        onErrorWeak = std::weak_ptr(onError)](auto url) {
-        auto onError = onErrorWeak.lock();
-        if (!onError)
-        {
-            return;
-        }
-        qCDebug(chatterinoUpdate) << "Requesting updates from" << url;
-        NetworkRequest(url)
-            .timeout(60000)
-            .followRedirects(true)
-            .onSuccess(onSuccess)
-            .onError(*onError)
-            .finally([onError]() {})
-            .execute();
-    };
-
-    *onError = [apiVersion, fmtUrl, makeRequest](const auto &) mutable {
-        if (*apiVersion >= maxApiVersion)
-        {
-            return;  // nothing returned a response, we're done
-        }
-        (*apiVersion)++;
-        makeRequest(fmtUrl());
-    };
-    makeRequest(fmtUrl());
+            // Step 2: Get release assets
+            self->fetchReleaseAssets();
+        })
+        .onError([self](const NetworkResult &) {
+            self->setStatus_(SearchFailed);
+        })
+        .execute();
 
     this->setStatus_(Searching);
 #endif
+}
+
+void Updates::fetchReleaseAssets()
+{
+    auto *self = this;
+    auto releaseUrl = u"https://api.github.com/repos/"_s %
+                      GITHUB_REPO % u"/releases/tags/"_s % NIGHTLY_TAG;
+    qCDebug(chatterinoUpdate) << "Requesting release assets from" << releaseUrl;
+
+    NetworkRequest(releaseUrl)
+        .header("Accept", "application/vnd.github+json")
+        .timeout(60000)
+        .followRedirects(true)
+        .onSuccess([self](const NetworkResult &result) {
+            const auto obj = result.parseJson();
+            auto assets = obj["assets"].toArray();
+
+            QString installerUrl;
+            QString portableUrl;
+            QString rawWindowsUrl;
+
+            for (const auto &assetVal : assets)
+            {
+                auto asset = assetVal.toObject();
+                auto name = asset["name"].toString();
+                auto url = asset["browser_download_url"].toString();
+
+#if defined(Q_OS_WIN)
+    #ifdef Q_PROCESSOR_ARM
+                if (name.contains("ARM64", Qt::CaseInsensitive) &&
+                    name.contains("Installer", Qt::CaseInsensitive) &&
+                    name.endsWith(".exe"))
+                {
+                    installerUrl = url;
+                }
+                if (name.contains("ARM64", Qt::CaseInsensitive) &&
+                    name.contains("Portable", Qt::CaseInsensitive) &&
+                    name.endsWith(".zip"))
+                {
+                    portableUrl = url;
+                }
+    #else
+                if (!name.contains("ARM64", Qt::CaseInsensitive) &&
+                    name.contains("Installer", Qt::CaseInsensitive) &&
+                    name.endsWith(".exe"))
+                {
+                    installerUrl = url;
+                }
+                if (!name.contains("ARM64", Qt::CaseInsensitive) &&
+                    name.contains("Portable", Qt::CaseInsensitive) &&
+                    name.endsWith(".zip"))
+                {
+                    portableUrl = url;
+                }
+    #endif
+                if (name.contains("windows", Qt::CaseInsensitive) &&
+                    name.endsWith(".zip") && rawWindowsUrl.isEmpty())
+                {
+                    rawWindowsUrl = url;
+                }
+#endif
+#if defined(Q_OS_MACOS)
+                if (name.endsWith(".dmg"))
+                {
+                    installerUrl = url;
+                }
+#endif
+            }
+
+#if defined(Q_OS_WIN)
+            if (installerUrl.isEmpty())
+            {
+                qCWarning(chatterinoUpdate)
+                    << "No installer asset found in nightly release";
+            }
+            if (portableUrl.isEmpty())
+            {
+                portableUrl = rawWindowsUrl;
+            }
+            self->updateExe_ = installerUrl;
+            self->updatePortable_ = portableUrl;
+#elif defined(Q_OS_MACOS)
+            self->updateExe_ = installerUrl;
+#endif
+            self->updateGuideLink_ =
+                u"https://github.com/"_s % GITHUB_REPO % u"/releases"_s;
+
+            if (self->updateExe_.isEmpty() &&
+                self->updatePortable_.isEmpty())
+            {
+                self->setStatus_(SearchFailed);
+                return;
+            }
+
+            self->setStatus_(UpdateAvailable);
+        })
+        .onError([self](const NetworkResult &) {
+            self->setStatus_(SearchFailed);
+        })
+        .execute();
 }
 
 Updates::Status Updates::getStatus() const
@@ -536,20 +524,8 @@ QString Updates::buildUpdateAvailableText() const
 
     if (version.isNightly())
     {
-        // Since Nightly builds can be installed in many different ways, we ask the user to download the update manually.
-        if (this->isDowngrade())
-        {
-            return QString(
-                       "The version online (%1) seems to be lower than the "
-                       "current (%2).\nEither a version was reverted or "
-                       "you are running a newer build.\n\nDo you want to "
-                       "head to github.com/SevenTV/chatterino7 to download it?")
-                .arg(this->getOnlineVersion(), this->getCurrentVersion());
-        }
-
-        return QString(
-                   "An update (%1) is available.\n\nDo you want to head to "
-                   "github.com/SevenTV/chatterino7 to download the new update?")
+        return QString("A new nightly build (%1) is available.\n\n"
+                        "Do you want to download and install it?")
             .arg(this->getOnlineVersion());
     }
 
