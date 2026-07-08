@@ -24,6 +24,10 @@ protected:
     QString idForBadge(const QJsonObject &badgeJson) const override;
     EmotePtr createBadge(const QString &id,
                          const QJsonObject &badgeJson) const override;
+    QString cacheProviderName() const override
+    {
+        return "bttv-badges";
+    }
 };
 
 }  // namespace chatterino
