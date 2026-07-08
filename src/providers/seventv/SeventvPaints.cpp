@@ -1,6 +1,7 @@
 #include "providers/seventv/SeventvPaints.hpp"
 
 #include "Application.hpp"
+#include "common/QLogging.hpp"
 #include "messages/Image.hpp"
 #include "providers/seventv/eventapi/Dispatch.hpp"
 #include "providers/seventv/paints/LinearGradientPaint.hpp"
@@ -9,9 +10,12 @@
 #include "providers/seventv/paints/UrlPaint.hpp"
 #include "singletons/WindowManager.hpp"
 #include "util/DebugCount.hpp"
+#include "util/Helpers.hpp"
 #include "util/PostToThread.hpp"
 #include "util/Variant.hpp"
 
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QUrlQuery>
 
 namespace {
@@ -176,6 +180,7 @@ void SeventvPaints::addPaint(const QJsonObject &paintJson)
 
     DebugCount::increase(DebugObject::SeventvPaints);
     this->knownPaints_[paintID] = *paint;
+    this->rawPaintsCache_[paintID] = paintJson;
 }
 
 void SeventvPaints::assignPaintToUsers(
@@ -210,9 +215,11 @@ void SeventvPaints::assignPaintToUsers(
         std::visit(variant::Overloaded{
                        [&](const seventv::eventapi::TwitchUser &u) {
                            addToMap(this->twitchPaintMap_, u.userName);
+                           rawAssignmentsCache_.append({u.userName, paintID, false});
                        },
                        [&](const seventv::eventapi::KickUser &u) {
                            addToMap(this->kickPaintMap_, u.userName);
+                           rawAssignmentsCache_.append({u.userName, paintID, true});
                        },
                    },
                    user);
@@ -265,6 +272,86 @@ void SeventvPaints::clearPaintFromUsers(
             getApp()->getWindows()->invalidateChannelViewBuffers();
         });
     }
+}
+
+void SeventvPaints::saveCache() const
+{
+    std::shared_lock lock(this->mutex_);
+    this->serializeCache();
+}
+
+void SeventvPaints::serializeCache() const
+{
+    QJsonObject root;
+    QJsonArray paintsArray;
+    for (auto it = this->rawPaintsCache_.constBegin();
+         it != this->rawPaintsCache_.constEnd(); ++it)
+    {
+        paintsArray.append(it.value());
+    }
+    root["paints"] = paintsArray;
+
+    QJsonArray assignmentsArray;
+    for (const auto &[username, paintID, isKick] : this->rawAssignmentsCache_)
+    {
+        QJsonObject entry;
+        entry["username"] = username;
+        entry["paintID"] = paintID;
+        entry["kick"] = isKick;
+        assignmentsArray.append(entry);
+    }
+    root["assignments"] = assignmentsArray;
+
+    writeProviderEmotesCache("seventv-paints", "cache",
+                             QJsonDocument(root).toJson(QJsonDocument::Compact));
+}
+
+void SeventvPaints::loadCache()
+{
+    readProviderEmotesCache("seventv-paints", "cache",
+                            [this](const QJsonDocument &doc) {
+                                auto root = doc.object();
+                                auto paints = root["paints"].toArray();
+                                for (const auto &paintVal : paints)
+                                {
+                                    this->addPaint(paintVal.toObject());
+                                }
+
+                                auto assignments = root["assignments"].toArray();
+                                for (const auto &assignVal : assignments)
+                                {
+                                    auto entry = assignVal.toObject();
+                                    auto username = entry["username"].toString();
+                                    auto paintID = entry["paintID"].toString();
+                                    bool isKick = entry["kick"].toBool();
+
+                                    std::unique_lock lock(this->mutex_);
+                                    const auto paintIt =
+                                        this->knownPaints_.find(paintID);
+                                    if (paintIt != this->knownPaints_.end())
+                                    {
+                                        if (isKick)
+                                        {
+                                            this->kickPaintMap_[username] =
+                                                paintIt->second;
+                                        }
+                                        else
+                                        {
+                                            this->twitchPaintMap_[username] =
+                                                paintIt->second;
+                                        }
+                                    }
+                                }
+
+                                if (!paints.isEmpty() || !assignments.isEmpty())
+                                {
+                                    qCDebug(chatterinoCache)
+                                        << "Loaded 7TV paints cache:"
+                                        << paints.size() << "paints,"
+                                        << assignments.size()
+                                        << "assignments";
+                                }
+                            });
 }
 
 }  // namespace chatterino

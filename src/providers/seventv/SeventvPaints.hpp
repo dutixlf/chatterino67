@@ -3,6 +3,7 @@
 #include "providers/seventv/paints/Paint.hpp"
 
 #include <QJsonArray>
+#include <QJsonObject>
 #include <QString>
 
 #include <shared_mutex>
@@ -31,8 +32,12 @@ public:
 
     std::shared_ptr<Paint> getPaint(const QString &userName, bool kick) const;
 
+    void saveCache() const;
+    void loadCache();
+
 private:
-    // Mutex for both `paintMap_` and `knownPaints_`
+    void serializeCache() const;
+
     mutable std::shared_mutex mutex_;
 
     // user-name => paint
@@ -41,6 +46,11 @@ private:
     std::unordered_map<QString, std::shared_ptr<Paint>> twitchPaintMap_;
     // paint-id => paint
     std::unordered_map<QString, std::shared_ptr<Paint>> knownPaints_;
+
+    // ponytail: offline cache — raw JSON for replay
+    QHash<QString, QJsonObject> rawPaintsCache_;
+    // (username, paintID, isKick)
+    QVector<std::tuple<QString, QString, bool>> rawAssignmentsCache_;
 };
 
 }  // namespace chatterino

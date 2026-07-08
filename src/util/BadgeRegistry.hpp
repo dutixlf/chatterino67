@@ -7,6 +7,8 @@
 #include "common/Aliases.hpp"
 
 #include <QJsonObject>
+#include <QHash>
+#include <QVector>
 
 #include <shared_mutex>
 #include <span>
@@ -50,12 +52,17 @@ public:
     /// @returns The badge's ID
     QString registerBadge(const QJsonObject &badgeJson);
 
+    void saveCache() const;
+    void loadCache();
+
 protected:
     BadgeRegistry() = default;
 
     virtual QString idForBadge(const QJsonObject &badgeJson) const = 0;
     virtual EmotePtr createBadge(const QString &id,
                                  const QJsonObject &badgeJson) const = 0;
+
+    virtual QString cacheProviderName() const = 0;
 
 private:
     /// Mutex for both `badgeMap_` and `knownBadges_`
@@ -67,6 +74,12 @@ private:
     std::unordered_map<uint64_t, EmotePtr> kickBadgeMap_;
     /// badge-id => badge
     std::unordered_map<QString, EmotePtr> knownBadges_;
+
+    // ponytail: offline cache — raw JSON for replay
+    QHash<QString, QJsonObject> rawBadgesCache_;
+    QVector<std::tuple<QString, QString, bool>> rawBadgeAssignmentsCache_;
+
+    void serializeCache() const;
 };
 
 }  // namespace chatterino

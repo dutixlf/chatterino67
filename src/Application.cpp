@@ -254,6 +254,10 @@ void Application::initialize(Settings &settings, const Paths &paths)
     this->ffzEmotes->loadEmotes();
     this->seventvEmotes->loadGlobalEmotes();
 
+    // ponytail: load cached 7TV paints and badges for offline use
+    this->seventvPaints->loadCache();
+    this->seventvBadges->loadCache();
+
     this->twitch->initialize();
     this->kickChatServer->initialize();
 
@@ -662,6 +666,10 @@ void Application::aboutToQuit()
 
     this->hotkeys->save();
     this->windows->save();
+
+    // ponytail: save 7TV paints/badges cache for offline use
+    this->seventvPaints->saveCache();
+    this->seventvBadges->saveCache();
 
     this->windows->closeAll();
 }

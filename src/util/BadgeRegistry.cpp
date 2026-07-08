@@ -4,11 +4,15 @@
 
 #include "util/BadgeRegistry.hpp"
 
+#include "common/QLogging.hpp"
 #include "messages/Emote.hpp"
 #include "providers/seventv/eventapi/Dispatch.hpp"
+#include "util/Helpers.hpp"
 #include "util/Variant.hpp"
 
 #include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QUrl>
 #include <QUrlQuery>
 
@@ -78,9 +82,11 @@ void BadgeRegistry::assignBadgeToUsers(
         std::visit(variant::Overloaded{
                        [&](const seventv::eventapi::TwitchUser &u) {
                            this->badgeMap_[u.id] = badgeIt->second;
+                           rawBadgeAssignmentsCache_.append({u.id, badgeID, false});
                        },
                        [&](const seventv::eventapi::KickUser &u) {
                            this->kickBadgeMap_[u.id] = badgeIt->second;
+                           rawBadgeAssignmentsCache_.append({QString::number(u.id), badgeID, true});
                        },
                    },
                    user);
@@ -132,7 +138,78 @@ QString BadgeRegistry::registerBadge(const QJsonObject &badgeJson)
     }
 
     this->knownBadges_[badgeID] = std::move(emote);
+    this->rawBadgesCache_[badgeID] = badgeJson;
     return badgeID;
+}
+
+void BadgeRegistry::saveCache() const
+{
+    std::shared_lock lock(this->mutex_);
+    this->serializeCache();
+}
+
+void BadgeRegistry::serializeCache() const
+{
+    QJsonObject root;
+    QJsonArray badgesArray;
+    for (auto it = this->rawBadgesCache_.constBegin();
+         it != this->rawBadgesCache_.constEnd(); ++it)
+    {
+        badgesArray.append(it.value());
+    }
+    root["badges"] = badgesArray;
+
+    QJsonArray assignmentsArray;
+    for (const auto &[userId, badgeID, isKick] : this->rawBadgeAssignmentsCache_)
+    {
+        QJsonObject entry;
+        entry["userId"] = userId;
+        entry["badgeID"] = badgeID;
+        entry["kick"] = isKick;
+        assignmentsArray.append(entry);
+    }
+    root["assignments"] = assignmentsArray;
+
+    writeProviderEmotesCache(cacheProviderName(), "cache",
+                             QJsonDocument(root).toJson(QJsonDocument::Compact));
+}
+
+void BadgeRegistry::loadCache()
+{
+    readProviderEmotesCache(cacheProviderName(), "cache",
+                            [this](const QJsonDocument &doc) {
+                                auto root = doc.object();
+                                auto badges = root["badges"].toArray();
+                                for (const auto &badgeVal : badges)
+                                {
+                                    this->registerBadge(badgeVal.toObject());
+                                }
+
+                                auto assignments = root["assignments"].toArray();
+                                for (const auto &assignVal : assignments)
+                                {
+                                    auto entry = assignVal.toObject();
+                                    auto userId = entry["userId"].toString();
+                                    auto badgeID = entry["badgeID"].toString();
+                                    bool isKick = entry["kick"].toBool();
+
+                                    std::unique_lock lock(this->mutex_);
+                                    const auto badgeIt =
+                                        this->knownBadges_.find(badgeID);
+                                    if (badgeIt != this->knownBadges_.end())
+                                    {
+                                        if (isKick)
+                                        {
+                                            this->kickBadgeMap_[userId.toULongLong()] =
+                                                badgeIt->second;
+                                        }
+                                        else
+                                        {
+                                            this->badgeMap_[userId] = badgeIt->second;
+                                        }
+                                    }
+                                }
+                            });
 }
 
 }  // namespace chatterino
