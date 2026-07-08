@@ -1478,6 +1478,12 @@ void GeneralPage::initLayout(GeneralPageView &layout)
                      "streamer updates their title.")
         ->addTo(layout);
 
+    SettingWidget::checkbox("Center system messages",
+                            s.centerSystemMessages)
+        ->setTooltip("Display system messages (timeouts, bans, connections, "
+                     "etc.) centered in chat instead of left-aligned.")
+        ->addTo(layout);
+
     SettingWidget::checkbox("Bold @usernames", s.boldUsernames)
         ->setTooltip("Bold @mentions to make them more noticeable.")
         ->addTo(layout);

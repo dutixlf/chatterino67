@@ -592,6 +592,10 @@ MessageBuilder::MessageBuilder(SystemMessageTag, const QString &text,
     }
     this->message().flags.set(MessageFlag::System);
     this->message().flags.set(MessageFlag::DoNotTriggerNotification);
+    if (getSettings()->centerSystemMessages)
+    {
+        this->message().flags.set(MessageFlag::Centered);
+    }
     this->message().messageText = text;
     this->message().searchText = text;
 }

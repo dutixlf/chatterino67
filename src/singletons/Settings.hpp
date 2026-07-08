@@ -389,6 +389,9 @@ public:
         "/behaviour/autocompletion/showUsernameCompletionMenu", true};
     BoolSetting showCommandCompletionMenu = {
         "/behaviour/autocompletion/showCommandCompletionMenu", true};
+
+    BoolSetting centerSystemMessages = {
+        "/appearance/centerSystemMessages", false};
     BoolSetting alwaysIncludeBroadcasterInUserCompletions = {
         "/behaviour/autocompletion/alwaysIncludeBroadcasterInUserCompletions",
         true,
