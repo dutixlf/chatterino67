@@ -18,7 +18,7 @@ public:
     EbloidPage();
 
 private:
-    QListWidget *trustedListWidget_;
+    QListWidget *trustedListWidget_{};
 };
 
 }  // namespace chatterino

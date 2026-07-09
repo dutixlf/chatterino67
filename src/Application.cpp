@@ -8,6 +8,9 @@
 #include "common/Channel.hpp"
 #include "common/Modes.hpp"
 #include "common/Version.hpp"
+#include "common/QLogging.hpp"
+#include "common/network/NetworkRequest.hpp"
+#include "common/network/NetworkResult.hpp"
 #include "controllers/accounts/AccountController.hpp"
 #include "controllers/commands/Command.hpp"
 #include "controllers/commands/CommandController.hpp"
@@ -249,14 +252,35 @@ void Application::initialize(Settings &settings, const Paths &paths)
 
     this->ffzBadges->load();
 
-    // Load global emotes
-    this->bttvEmotes->loadEmotes();
-    this->ffzEmotes->loadEmotes();
-    this->seventvEmotes->loadGlobalEmotes();
+    // ponytail: test connectivity to 7TV — if blocked, enable proxy and reload
+    {
+        auto *self = this;
+        NetworkRequest("https://7tv.io/v3/emote-sets/global")
+            .timeout(5000)
+            .onSuccess([self](const auto &) {
+                // 7TV reachable, load emotes normally
+                self->bttvEmotes->loadEmotes();
+                self->ffzEmotes->loadEmotes();
+                self->seventvEmotes->loadGlobalEmotes();
+            })
+            .onError([self](const auto &) {
+                // 7TV blocked — enable proxy and load through it
+                qCWarning(chatterinoApp)
+                    << "7TV unreachable, enabling ReYohoho proxy";
+                getSettings()->useProxy = true;
+                self->bttvEmotes->loadEmotes();
+                self->ffzEmotes->loadEmotes();
+                self->seventvEmotes->loadGlobalEmotes();
+            })
+            .execute();
+    }
 
     // ponytail: load cached 7TV paints and badges for offline use
     this->seventvPaints->loadCache();
     this->seventvBadges->loadCache();
+
+    // ponytail: load ReYohoho paints (same format as 7TV)
+    this->seventvPaints->loadRTEPaints();
 
     this->twitch->initialize();
     this->kickChatServer->initialize();

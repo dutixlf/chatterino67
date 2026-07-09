@@ -24,7 +24,7 @@ class SeventvPaints
 public:
     SeventvPaints();
 
-    void addPaint(const QJsonObject &paintJson);
+    void addPaint(const QJsonObject &paintJson, bool isRTE = false);
     void assignPaintToUsers(const QString &paintID,
                             std::span<const seventv::eventapi::User> users);
     void clearPaintFromUsers(const QString &paintID,
@@ -34,6 +34,9 @@ public:
 
     void saveCache() const;
     void loadCache();
+
+    // ponytail: load paints from ReYohoho API
+    void loadRTEPaints();
 
 private:
     void serializeCache() const;

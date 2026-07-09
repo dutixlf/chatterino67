@@ -29,6 +29,7 @@ public:
     Paint &operator=(Paint &&) = delete;
 
     QString id;
+    bool isRTE = false;
 
 protected:
     static QColor overlayColors(QColor background, QColor foreground);

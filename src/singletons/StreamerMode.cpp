@@ -8,7 +8,10 @@
 #include "common/Literals.hpp"
 #include "common/QLogging.hpp"
 #include "common/Version.hpp"
+#include "controllers/accounts/AccountController.hpp"
+#include "providers/twitch/TwitchAccount.hpp"
 #include "providers/twitch/TwitchIrcServer.hpp"
+#include "providers/twitch/api/Helix.hpp"
 #include "singletons/Settings.hpp"
 #include "util/PostToThread.hpp"
 
@@ -187,6 +190,7 @@ private:
     void setEnabled(bool enabled);
 
     void check();
+    void checkAnyAccountLive();
 
     StreamerMode *parent_;
     pajlada::Signals::SignalHolder settingConnections_;
@@ -328,6 +332,16 @@ void StreamerModePrivate::settingChanged(StreamerModeSetting value)
             });
         }
         break;
+        case StreamerModeSetting::DetectLiveAccounts: {
+            QMetaObject::invokeMethod(this->timer_, [this] {
+                if (!this->timer_->isActive())
+                {
+                    this->timer_->start(30s);
+                    this->check();
+                }
+            });
+        }
+        break;
         default:
             assert(false && "Unexpected setting");
             break;
@@ -336,7 +350,46 @@ void StreamerModePrivate::settingChanged(StreamerModeSetting value)
 
 void StreamerModePrivate::check()
 {
-    this->setEnabled(isBroadcasterSoftwareActive());
+    if (this->currentSetting_ == StreamerModeSetting::DetectLiveAccounts)
+    {
+        this->checkAnyAccountLive();
+    }
+    else
+    {
+        this->setEnabled(isBroadcasterSoftwareActive());
+    }
+}
+
+void StreamerModePrivate::checkAnyAccountLive()
+{
+    auto &accounts = getApp()->getAccounts()->twitch.accounts;
+    QStringList userIds;
+    for (const auto &acc : accounts)
+    {
+        if (!acc->isAnon())
+        {
+            auto id = acc->getUserId();
+            if (!id.isEmpty())
+            {
+                userIds << id;
+            }
+        }
+    }
+    if (userIds.isEmpty())
+    {
+        this->setEnabled(false);
+        return;
+    }
+
+    getHelix()->fetchStreams(
+        userIds, {},
+        [this](const std::vector<HelixStream> &streams) {
+            this->setEnabled(!streams.empty());
+        },
+        [this]() {
+            this->setEnabled(false);
+        },
+        nullptr);
 }
 
 }  // namespace chatterino

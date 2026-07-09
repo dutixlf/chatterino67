@@ -1176,6 +1176,7 @@ void SplitInput::insertCompletionText(const QString &input_) const
         }
         else if (text[i] == '/' || text[i] == '.')
         {
+            input = text[i] + input;
             done = true;
         }
 

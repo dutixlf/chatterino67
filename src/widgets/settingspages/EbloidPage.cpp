@@ -30,6 +30,9 @@ EbloidPage::EbloidPage()
                            "messages. Use the options below to control how "
                            "they behave in streamer mode.");
 
+    layout.append(this->createCheckBox("Enable eblo.id image rendering",
+                                       getSettings()->enableEbloid));
+
     {
         auto *streamerModeLabel = new QLabel("Streamer mode");
         layout.append(streamerModeLabel);

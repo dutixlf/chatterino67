@@ -241,6 +241,9 @@ public:
     BoolSetting enableSmoothScrollingNewMessages = {
         "/appearance/smoothScrollingNewMessages", false};
     BoolSetting displaySevenTVPaints = {"/misc/displaySevenTVPaints", true};
+    BoolSetting displayRTEPaints = {"/misc/displayRTEPaints", true};
+    // ponytail: proxy 7TV/FFZ/BTTV API through ReYohoho for blocked regions
+    BoolSetting useProxy = {"/misc/useProxy", false};
     BoolSetting displaySevenTVPaintShadows = {
         "/misc/displaySevenTVPaintShadows", true};
     BoolSetting largeSevenTVPaintShadows = {"/misc/largeSevenTVPaintShadows",
@@ -414,7 +417,21 @@ public:
     IntSetting antispamThreshold = {"/highlighting/antispam/threshold", 3};
     IntSetting antispamWindowSeconds = {"/highlighting/antispam/windowSeconds",
                                         10};
-    QStringSetting antispamColor = {"/highlighting/antispam/color", ""};
+    QStringSetting antispamColor = {"/highlighting/antispam/color",
+                                    "#4BF08080"};
+    ChatterinoSetting<std::vector<QString>> antispamExceptions = {
+        "/highlighting/antispam/exceptions",
+        {"nightbot", "streamelements", "moobot", "fossabot", "wizebot",
+         "streamlabs", "soundalerts", "botrix", "sery_bot", "supibot",
+         "commanderroot", "pajbot", "own3d", "modbody1"}};
+    BoolSetting antispamIgnoreVIPs = {
+        "/highlighting/antispam/ignoreVIPs", false};
+    BoolSetting antispamIgnoreMods = {
+        "/highlighting/antispam/ignoreMods", false};
+    QStringSetting antispamPastaColor = {"/highlighting/antispam/pastaColor",
+                                         "#4B6495ED"};
+    QStringSetting firstMessageColor = {"/highlighting/firstMessage/color",
+                                        ""};
     BoolSetting alwaysIncludeBroadcasterInUserCompletions = {
         "/behaviour/autocompletion/alwaysIncludeBroadcasterInUserCompletions",
         true,
@@ -539,6 +556,7 @@ public:
     };
 
     /// eblo.id image rendering
+    BoolSetting enableEbloid = {"/ebloid/enabled", true};
     EnumSetting<EbloidStreamerMode> ebloidStreamerMode = {
         "/ebloid/streamerMode", EbloidStreamerMode::Disabled};
     ChatterinoSetting<std::vector<QString>> ebloidStreamerTrustedChatters = {

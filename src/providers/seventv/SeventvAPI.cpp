@@ -7,6 +7,7 @@
 #include "common/Literals.hpp"
 #include "common/network/NetworkRequest.hpp"
 #include "common/network/NetworkResult.hpp"
+#include "util/Helpers.hpp"
 
 namespace {
 
@@ -26,7 +27,7 @@ void SeventvAPI::getUserByTwitchID(
     const QString &twitchID, SuccessCallback<const QJsonObject &> &&onSuccess,
     ErrorCallback &&onError)
 {
-    NetworkRequest(API_URL_USER.arg(twitchID), NetworkRequestType::Get)
+    NetworkRequest(proxiedUrl(API_URL_USER.arg(twitchID)), NetworkRequestType::Get)
         .timeout(20000)
         .onSuccess(
             [callback = std::move(onSuccess)](const NetworkResult &result) {
@@ -43,7 +44,7 @@ void SeventvAPI::getUserByKickID(
     uint64_t userID, SuccessCallback<const QJsonObject &> &&onSuccess,
     ErrorCallback &&onError)
 {
-    NetworkRequest(API_URL_KICK_USER.arg(userID), NetworkRequestType::Get)
+    NetworkRequest(proxiedUrl(API_URL_KICK_USER.arg(userID)), NetworkRequestType::Get)
         .timeout(20000)
         .onSuccess(
             [callback = std::move(onSuccess)](const NetworkResult &result) {
@@ -60,7 +61,7 @@ void SeventvAPI::getEmoteSet(const QString &emoteSet,
                              SuccessCallback<const QJsonObject &> &&onSuccess,
                              ErrorCallback &&onError)
 {
-    NetworkRequest(API_URL_EMOTE_SET.arg(emoteSet), NetworkRequestType::Get)
+    NetworkRequest(proxiedUrl(API_URL_EMOTE_SET.arg(emoteSet)), NetworkRequestType::Get)
         .timeout(25000)
         .onSuccess(
             [callback = std::move(onSuccess)](const NetworkResult &result) {
@@ -106,7 +107,7 @@ void SeventvAPI::updatePresence(const QString &platform,
          }},
     };
 
-    NetworkRequest(API_URL_PRESENCES.arg(seventvUserID),
+    NetworkRequest(proxiedUrl(API_URL_PRESENCES.arg(seventvUserID)),
                    NetworkRequestType::Post)
         .json(payload)
         .timeout(10000)

@@ -14,6 +14,7 @@ enum StreamerModeSetting : std::uint8_t {
     Disabled,
     Enabled,
     DetectStreamingSoftware,
+    DetectLiveAccounts,
 };
 
 constexpr std::optional<std::string_view> qmagicenumDisplayName(
@@ -29,6 +30,9 @@ constexpr std::optional<std::string_view> qmagicenumDisplayName(
 
         case DetectStreamingSoftware:
             return "Automatic (Detect streaming software)";
+
+        case DetectLiveAccounts:
+            return "Automatic (Detect live accounts)";
     }
 }
 

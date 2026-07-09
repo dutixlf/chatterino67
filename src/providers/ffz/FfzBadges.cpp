@@ -10,6 +10,7 @@
 #include "messages/Emote.hpp"
 #include "messages/Image.hpp"
 #include "providers/ffz/FfzUtil.hpp"
+#include "util/Helpers.hpp"
 
 #include <QJsonArray>
 #include <QJsonObject>
@@ -54,7 +55,7 @@ std::optional<FfzBadges::Badge> FfzBadges::getBadge(const int badgeID) const
 
 void FfzBadges::load()
 {
-    static QUrl url("https://api.frankerfacez.com/v1/badges/ids");
+    static QUrl url(proxiedUrl("https://api.frankerfacez.com/v1/badges/ids"));
 
     NetworkRequest(url)
         .onSuccess([this](auto result) {

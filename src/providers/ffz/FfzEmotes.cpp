@@ -247,7 +247,7 @@ void FfzEmotes::loadEmotes()
         this->setEmotes(std::make_shared<EmoteMap>(std::move(parsedSet)));
     });
 
-    QString url("https://api.frankerfacez.com/v1/set/global");
+    QString url(proxiedUrl("https://api.frankerfacez.com/v1/set/global"));
 
     NetworkRequest(url)
         .timeout(30000)
@@ -280,7 +280,7 @@ void FfzEmotes::loadChannel(
 {
     qCDebug(LOG) << "Reload FFZ Channel Emotes for channel" << channelID;
 
-    NetworkRequest("https://api.frankerfacez.com/v1/room/id/" + channelID)
+    NetworkRequest(proxiedUrl("https://api.frankerfacez.com/v1/room/id/" + channelID))
 
         .timeout(20000)
         .onSuccess([emoteCallback = std::move(emoteCallback),

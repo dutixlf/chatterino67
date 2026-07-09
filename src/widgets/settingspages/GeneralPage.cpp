@@ -1468,6 +1468,13 @@ void GeneralPage::initLayout(GeneralPageView &layout)
 
     SettingWidget::checkbox("Display 7TV Paints", s.displaySevenTVPaints)
         ->addTo(layout);
+    SettingWidget::checkbox("Display ReYohoho Paints", s.displayRTEPaints)
+        ->addTo(layout);
+    SettingWidget::checkbox("Use ReYohoho proxy (7TV/FFZ/BTTV)", s.useProxy)
+        ->setTooltip("Routes 7TV, FFZ, and BTTV API requests through "
+                     "ext.rte.net.ru:8443. Enable if these services are "
+                     "blocked in your region.")
+        ->addTo(layout);
     SettingWidget::checkbox("Display 7TV Paint Shadows",
                             s.displaySevenTVPaintShadows)
         ->addTo(layout);
@@ -1481,6 +1488,7 @@ void GeneralPage::initLayout(GeneralPageView &layout)
             getApp()->getWindows()->invalidateChannelViewBuffers();
         };
         s.displaySevenTVPaints.connect(cb, false);
+        s.displayRTEPaints.connect(cb, false);
         s.displaySevenTVPaintShadows.connect(cb, false);
         s.largeSevenTVPaintShadows.connect(cb, false);
     }
@@ -1532,25 +1540,6 @@ void GeneralPage::initLayout(GeneralPageView &layout)
                             s.firstMessageMaxCount, {.min = 0, .max = 100})
         ->setTooltip("Maximum number of messages to highlight from a new "
                      "viewer. 0 = unlimited (use timeout only). Default: 0")
-        ->addTo(layout);
-
-    layout.addTitle("Antispam (Experimental)");
-
-    SettingWidget::checkbox("Enable antispam detection", s.enableAntispam)
-        ->setTooltip("Detects and highlights spam messages (repeated identical "
-                     "messages from one or multiple users).")
-        ->addTo(layout);
-
-    SettingWidget::intInput("Antispam threshold (messages)",
-                            s.antispamThreshold, {.min = 2, .max = 50})
-        ->setTooltip("Number of similar messages needed to trigger spam "
-                     "detection. Default: 3")
-        ->addTo(layout);
-
-    SettingWidget::intInput("Antispam time window (seconds)",
-                            s.antispamWindowSeconds, {.min = 1, .max = 300})
-        ->setTooltip("Time window in seconds to check for repeated messages. "
-                     "Default: 10")
         ->addTo(layout);
 
     SettingWidget::checkbox("Bold @usernames", s.boldUsernames)

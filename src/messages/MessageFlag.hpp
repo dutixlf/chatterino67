@@ -82,6 +82,8 @@ enum class MessageFlag : std::int64_t {
     UncategorizedNotification = (1LL << 45),
     /// The message was detected as spam by the antispam detector
     Spam = (1LL << 46),
+    /// The message was detected as a copypasta (multiple users sending identical text)
+    Pasta = (1LL << 47),
 };
 using MessageFlags = FlagsEnum<MessageFlag>;
 

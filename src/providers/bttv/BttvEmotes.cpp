@@ -247,7 +247,7 @@ void BttvEmotes::loadEmotes()
         }
     });
 
-    NetworkRequest(QString(globalEmoteApiUrl))
+    NetworkRequest(proxiedUrl(QString(globalEmoteApiUrl)))
         .timeout(30000)
         .onSuccess([this](auto result) {
             writeProviderEmotesCache("global", "betterttv", result.getData());
@@ -277,7 +277,7 @@ void BttvEmotes::loadChannel(std::weak_ptr<Channel> channel,
                              std::function<void(EmoteMap &&)> callback,
                              bool manualRefresh, bool cacheHit)
 {
-    NetworkRequest(QString(bttvChannelEmoteApiUrl) + channelId)
+    NetworkRequest(proxiedUrl(QString(bttvChannelEmoteApiUrl) + channelId))
         .timeout(20000)
         .onSuccess([callback = std::move(callback), channel, channelId,
                     channelDisplayName, manualRefresh](auto result) {

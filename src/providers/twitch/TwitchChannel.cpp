@@ -59,6 +59,7 @@
 #include <rapidjson/document.h>
 
 #include <algorithm>
+#include <set>
 
 using namespace Qt::StringLiterals;
 
@@ -2604,28 +2605,56 @@ void TwitchChannel::recordFirstMessage(const QString &userId)
     };
 }
 
-bool TwitchChannel::checkAntispam(const QString &text, const QString &userId)
+TwitchChannel::AntispamResult TwitchChannel::checkAntispam(
+    const QString &text, const QString &userId, const QString &userName,
+    const std::vector<TwitchBadge> &badges, int &outCount)
 {
+    outCount = 0;
     if (!getSettings()->enableAntispam)
     {
-        return false;
+        return AntispamResult::None;
     }
 
     auto threshold = getSettings()->antispamThreshold;
     auto windowSecs = getSettings()->antispamWindowSeconds;
     if (threshold <= 0 || windowSecs <= 0)
     {
-        return false;
+        return AntispamResult::None;
     }
 
     auto normalized = text.toLower().trimmed().simplified();
     if (normalized.isEmpty() || normalized.length() < 3)
     {
-        return false;
+        return AntispamResult::None;
     }
 
+    auto lowerUser = userName.toLower();
+    for (const auto &excl : getSettings()->antispamExceptions.getValue())
+    {
+        if (excl.toLower() == lowerUser)
+        {
+            return AntispamResult::None;
+        }
+    }
+
+    bool isVIP = false, isMod = false;
+    for (const auto &b : badges)
+    {
+        if (b.key_ == "vip") isVIP = true;
+        if (b.key_ == "moderator" || b.key_ == "lead_moderator")
+            isMod = true;
+    }
+
+    bool skipUser = (isVIP && getSettings()->antispamIgnoreVIPs) ||
+                    (isMod && getSettings()->antispamIgnoreMods);
+
     auto now = QDateTime::currentDateTime();
-    int matchCount = 0;
+
+    // per-user spam: same userId repeating same text
+    int userMatchCount = 0;
+    // cross-user pasta: different userIds sending same text
+    int pastaMsgCount = 0;
+    std::set<QString> pastaUsers;
 
     for (const auto &msg : this->recentMessages_)
     {
@@ -2635,13 +2664,60 @@ bool TwitchChannel::checkAntispam(const QString &text, const QString &userId)
         }
         if (msg.normalizedText == normalized)
         {
-            matchCount++;
+            if (msg.userId == userId)
+            {
+                userMatchCount++;
+            }
+            else
+            {
+                pastaUsers.insert(msg.userId);
+                pastaMsgCount++;
+            }
         }
     }
+    int pastaUserCount = static_cast<int>(pastaUsers.size());
 
-    this->recentMessages_.push_back({normalized, userId, now});
+    if (!skipUser)
+    {
+        this->recentMessages_.push_back(
+            {normalized, userId, userName, isVIP, isMod, now});
+    }
 
-    return matchCount >= threshold;
+    bool isSpam = userMatchCount >= threshold && !skipUser;
+    bool isPasta = (pastaUserCount + 1) >= threshold && !skipUser;
+
+    if (isSpam || isPasta)
+    {
+        outCount = userMatchCount + pastaMsgCount + 1;
+        auto snapshot = this->getMessageSnapshot(100);
+        for (const auto &msg : snapshot)
+        {
+            if (msg->flags.has(MessageFlag::Disabled))
+            {
+                continue;
+            }
+            if (msg->serverReceivedTime.secsTo(now) > windowSecs)
+            {
+                continue;
+            }
+            if (msg->messageText.toLower().trimmed().simplified() ==
+                normalized)
+            {
+                if (isPasta && !msg->flags.has(MessageFlag::Spam))
+                {
+                    msg->flags.set(MessageFlag::Pasta);
+                }
+                else if (isSpam)
+                {
+                    msg->flags.set(MessageFlag::Spam);
+                }
+            }
+        }
+        getApp()->getWindows()->forceLayoutChannelViews();
+        return isPasta ? AntispamResult::Pasta : AntispamResult::Spam;
+    }
+
+    return AntispamResult::None;
 }
 
 }  // namespace chatterino

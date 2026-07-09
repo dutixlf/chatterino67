@@ -1126,7 +1126,7 @@ void MessageBuilder::addLink(const linkparser::Parsed &parsedLink,
                                    MessageElementFlag::Text, this->textColor_);
     }
 
-    if (ebloid::isEbloidLink(fullUrl))
+    if (getSettings()->enableEbloid && ebloid::isEbloidLink(fullUrl))
     {
         const auto mode = getSettings()->ebloidStreamerMode.getEnum();
         const bool senderTrusted =
@@ -1856,9 +1856,24 @@ std::pair<MessagePtrMut, HighlightAlert> MessageBuilder::makeIrcMessage(
         builder->flags.set(MessageFlag::FirstMessage);
     }
 
-    if (twitchChannel && twitchChannel->checkAntispam(content, userID))
+    if (twitchChannel)
     {
-        builder->flags.set(MessageFlag::Spam);
+        auto antispamBadges = parseBadgeTag(tags);
+        int spamCount = 0;
+        auto result = twitchChannel->checkAntispam(
+            content, userID, builder->loginName, antispamBadges, spamCount);
+        if (result == TwitchChannel::AntispamResult::Spam)
+        {
+            builder->flags.set(MessageFlag::Spam);
+        }
+        else if (result == TwitchChannel::AntispamResult::Pasta)
+        {
+            builder->flags.set(MessageFlag::Pasta);
+        }
+        if (spamCount > 1)
+        {
+            builder->spamCount = spamCount;
+        }
     }
 
     if (tags.contains("pinned-chat-paid-amount"))
@@ -1996,6 +2011,15 @@ std::pair<MessagePtrMut, HighlightAlert> MessageBuilder::makeIrcMessage(
     }
 
     builder.addPendingEbloidImages();
+
+    // ponytail: append spam repetition count as a text element
+    if (builder->spamCount > 1)
+    {
+        builder.emplace<TextElement>(
+            QStringLiteral(" ×%1").arg(builder->spamCount),
+            MessageElementFlag::Text, MessageColor::System,
+            FontStyle::ChatMedium);
+    }
 
     return {builder.release(), highlight};
 }
@@ -2503,7 +2527,22 @@ void MessageBuilder::appendUsername(const QVariantMap &tags,
         QString displayName =
             parseTagString(iterator.value().toString()).trimmed();
 
-        if (QString::compare(displayName, username, Qt::CaseInsensitive) == 0)
+        // ponytail: strip invisible Unicode bidi control characters (e.g.
+        // U+061C Arabic Letter Mark) from display names — they cause RTL
+        // rendering artifacts and vertical offset in chat
+        for (int i = displayName.length() - 1; i >= 0; i--)
+        {
+            auto c = displayName[i].unicode();
+            if ((c >= 0x202A && c <= 0x202E) ||
+                (c >= 0x2066 && c <= 0x2069) ||
+                c == 0x061C || c == 0x200E || c == 0x200F)
+            {
+                displayName.remove(i, 1);
+            }
+        }
+
+        if (QString::compare(displayName, username,
+                             Qt::CaseInsensitive) == 0)
         {
             username = displayName;
 

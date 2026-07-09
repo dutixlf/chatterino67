@@ -13,6 +13,7 @@
 #include "providers/ffz/FfzBadges.hpp"
 #include "providers/ffz/FfzEmotes.hpp"
 #include "providers/twitch/eventsub/SubscriptionHandle.hpp"
+#include "providers/twitch/TwitchBadge.hpp"
 #include "providers/twitch/TwitchEmotes.hpp"
 #include "util/QStringHash.hpp"
 #include "util/ThreadGuard.hpp"
@@ -623,14 +624,26 @@ private:
     struct RecentMessage {
         QString normalizedText;
         QString userId;
+        QString userName;
+        bool isVIP = false;
+        bool isMod = false;
         QDateTime timestamp;
     };
     boost::circular_buffer<RecentMessage> recentMessages_{100};
 
 public:
+    enum class AntispamResult {
+        None,
+        Spam,
+        Pasta,
+    };
+
     bool shouldHighlightAsNewbie(const QString &userId);
     void recordFirstMessage(const QString &userId);
-    bool checkAntispam(const QString &text, const QString &userId);
+    AntispamResult checkAntispam(const QString &text, const QString &userId,
+                                 const QString &userName,
+                                 const std::vector<TwitchBadge> &badges,
+                                 int &outCount);
 };
 
 }  // namespace chatterino

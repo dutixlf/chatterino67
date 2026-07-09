@@ -77,6 +77,9 @@ bool startsWithOrContains(QStringView str1, QStringView str2,
 bool isNeutral(const QString &s);
 QString generateUuid();
 
+// ponytail: proxy URL helper — replaces https://host with proxy prefix
+QString proxiedUrl(const QString &url);
+
 QString formatRichLink(const QString &url, bool file = false);
 
 QString formatRichNamedLink(const QString &url, const QString &name,

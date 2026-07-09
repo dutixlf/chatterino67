@@ -2,6 +2,17 @@
 
 ## Unversioned
 
+- Minor: Added Antispam settings page with per-user spam and cross-user copypasta detection, configurable threshold, time window, highlight colors, VIP/mod ignore toggles, user exceptions, and repetition count display
+- Minor: Added ReYohoho Paints support — renders nickname paints from the ReYohoho Twitch Extension API
+- Minor: Added automatic ReYohoho proxy for 7TV/FFZ/BTTV API when 7TV is unreachable
+- Minor: Added "Detect live accounts" streamer mode option — enables streamer mode when any authenticated Twitch account goes live
+- Minor: Added eblo.id image rendering toggle
+- Minor: Added configurable first-message highlight color
+- Bugfix: Fixed Unicode bidi control characters (e.g. U+061C Arabic Letter Mark) in display names causing RTL rendering artifacts and vertical offset
+- Bugfix: Fixed command autocomplete dropping the `/` prefix when selecting a command
+- Bugfix: Fixed antispam not retroactively highlighting earlier spam messages
+- Bugfix: Fixed antispam spam count displaying incorrect values for cross-user pasta
+- Bugfix: Fixed race condition in ReYohoho paint loading where user-paints could be fetched before paint definitions were loaded
 - Minor: Added "Open 7TV user in browser" and "Open channel in browser" (same as left-click) when right-clicking the profile picture in a usercard (#400)
 - Minor: Unlisted 7TV emotes are now shown by default.
 - Minor: Added support for custom badges from Chatterino Homies, DankChat, Chatsen, Chatty, PurpleTV, and ReYohoho Twitch Extension.

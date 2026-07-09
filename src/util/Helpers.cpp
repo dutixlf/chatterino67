@@ -8,6 +8,7 @@
 #include "common/QLogging.hpp"
 #include "providers/twitch/TwitchCommon.hpp"
 #include "singletons/Paths.hpp"
+#include "singletons/Settings.hpp"
 
 #include <QDateTime>
 #include <QDirIterator>
@@ -155,6 +156,20 @@ bool isNeutral(const QString &s)
     static const QRegularExpression re("\\p{L}");
     const QRegularExpressionMatch match = re.match(s);
     return !match.hasMatch();
+}
+
+QString proxiedUrl(const QString &url)
+{
+    if (!getSettings()->useProxy)
+    {
+        return url;
+    }
+    // ponytail: prepend proxy prefix, strip "https://" from original
+    if (url.startsWith("https://"))
+    {
+        return "https://ext.rte.net.ru:8443/" + url.mid(8);
+    }
+    return url;
 }
 
 QString generateUuid()

@@ -396,9 +396,12 @@ void MessageLayout::updateBuffer(QPixmap *buffer,
     else if (this->message_->flags.has(MessageFlag::FirstMessage) &&
              ctx.preferences.enableFirstMessageHighlight)
     {
+        auto fmColor = getSettings()->firstMessageColor.getValue();
         backgroundColor = blendColors(
             backgroundColor,
-            *ctx.colorProvider.color(ColorType::FirstMessageHighlight));
+            fmColor.isEmpty()
+                ? *ctx.colorProvider.color(ColorType::FirstMessageHighlight)
+                : QColor(fmColor));
     }
     else if (this->message_->flags.has(MessageFlag::WatchStreak) &&
              ctx.preferences.enableWatchStreakHighlight)
@@ -471,9 +474,19 @@ void MessageLayout::updateBuffer(QPixmap *buffer,
         backgroundColor = blendColors(
             backgroundColor, *ctx.colorProvider.color(ColorType::Subscription));
     }
+    else if (this->message_->flags.has(MessageFlag::Pasta))
+    {
+        auto pastaColor = getSettings()->antispamPastaColor.getValue();
+        backgroundColor = blendColors(
+            backgroundColor,
+            pastaColor.isEmpty() ? QColor("#6495ED") : QColor(pastaColor));
+    }
     else if (this->message_->flags.has(MessageFlag::Spam))
     {
-        backgroundColor = blendColors(backgroundColor, QColor("#F08080"));
+        auto spamColor = getSettings()->antispamColor.getValue();
+        backgroundColor = blendColors(
+            backgroundColor,
+            spamColor.isEmpty() ? QColor("#F08080") : QColor(spamColor));
     }
 
     painter.fillRect(buffer->rect(), backgroundColor);

@@ -2,12 +2,15 @@
 
 #include "Application.hpp"
 #include "common/QLogging.hpp"
+#include "common/network/NetworkRequest.hpp"
+#include "common/network/NetworkResult.hpp"
 #include "messages/Image.hpp"
 #include "providers/seventv/eventapi/Dispatch.hpp"
 #include "providers/seventv/paints/LinearGradientPaint.hpp"
 #include "providers/seventv/paints/PaintDropShadow.hpp"
 #include "providers/seventv/paints/RadialGradientPaint.hpp"
 #include "providers/seventv/paints/UrlPaint.hpp"
+#include "singletons/Settings.hpp"
 #include "singletons/WindowManager.hpp"
 #include "util/DebugCount.hpp"
 #include "util/Helpers.hpp"
@@ -137,31 +140,88 @@ namespace chatterino {
 
 SeventvPaints::SeventvPaints() = default;
 
+void SeventvPaints::loadRTEPaints()
+{
+    // ponytail: fetch paints from ReYohoho API (same format as 7TV)
+    // then fetch user-paints after paints are loaded to avoid race
+    NetworkRequest(QUrl("https://ext.rte.net.ru:8443/api/paints"))
+        .concurrent()
+        .onSuccess([this](NetworkResult result) {
+            auto root = result.parseJson();
+            auto paints = root["paints"].toArray();
+            for (const auto &paintVal : paints)
+            {
+                this->addPaint(paintVal.toObject(), true);
+            }
+            qCDebug(chatterinoSeventv)
+                << "Loaded" << paints.size() << "RTE paints";
+
+            // now fetch user-paints assignments (paints are in knownPaints_)
+            NetworkRequest(
+                QUrl("https://ext.rte.net.ru:8443/api/user-paints"))
+                .concurrent()
+                .onSuccess([this](NetworkResult result2) {
+                    auto users = result2.parseJsonArray();
+                    std::unique_lock lock(this->mutex_);
+                    int nAssigned = 0;
+                    for (const auto &userVal : users)
+                    {
+                        auto entry = userVal.toObject();
+                        auto twitchId = entry["twitchId"].toString();
+                        auto paintID = entry["paintId"].toString();
+                        auto it = this->knownPaints_.find(paintID);
+                        if (it != this->knownPaints_.end())
+                        {
+                            this->twitchPaintMap_[twitchId] = it->second;
+                            nAssigned++;
+                        }
+                    }
+                    qCDebug(chatterinoSeventv)
+                        << "Assigned" << nAssigned << "RTE user paints";
+                    if (nAssigned > 0)
+                    {
+                        postToThread([] {
+                            getApp()->getWindows()
+                                ->invalidateChannelViewBuffers();
+                        });
+                    }
+                })
+                .execute();
+        })
+        .execute();
+}
+
 std::shared_ptr<Paint> SeventvPaints::getPaint(const QString &userName,
                                                bool kick) const
 {
     std::shared_lock lock(this->mutex_);
 
+    auto check = [&](const auto &map) -> std::shared_ptr<Paint> {
+        const auto it = map.find(userName);
+        if (it == map.end())
+        {
+            return nullptr;
+        }
+        // ponytail: filter by source setting
+        if (it->second->isRTE && !getSettings()->displayRTEPaints)
+        {
+            return nullptr;
+        }
+        if (!it->second->isRTE && !getSettings()->displaySevenTVPaints)
+        {
+            return nullptr;
+        }
+        return it->second;
+    };
+
     if (kick)
     {
-        const auto it = this->kickPaintMap_.find(userName);
-        if (it != this->kickPaintMap_.end())
-        {
-            return it->second;
-        }
+        return check(this->kickPaintMap_);
     }
-    else
-    {
-        const auto it = this->twitchPaintMap_.find(userName);
-        if (it != this->twitchPaintMap_.end())
-        {
-            return it->second;
-        }
-    }
-    return nullptr;
+    return check(this->twitchPaintMap_);
 }
 
-void SeventvPaints::addPaint(const QJsonObject &paintJson)
+void SeventvPaints::addPaint(const QJsonObject &paintJson, bool isRTE)
 {
     const auto paintID = paintJson["id"].toString();
 
@@ -178,6 +238,7 @@ void SeventvPaints::addPaint(const QJsonObject &paintJson)
         return;
     }
 
+    (*paint)->isRTE = isRTE;
     DebugCount::increase(DebugObject::SeventvPaints);
     this->knownPaints_[paintID] = *paint;
     this->rawPaintsCache_[paintID] = paintJson;
