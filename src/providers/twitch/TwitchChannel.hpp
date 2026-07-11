@@ -631,6 +631,15 @@ private:
     };
     boost::circular_buffer<RecentMessage> recentMessages_{100};
 
+    // ponytail: pasta sessions — rolling window, resets on gap > windowSecs
+    struct PastaSession {
+        QString text;
+        QDateTime lastSeen;
+        std::set<QString> users;
+        int msgCount = 0;
+    };
+    std::vector<PastaSession> pastaSessions_;
+
 public:
     enum class AntispamResult {
         None,

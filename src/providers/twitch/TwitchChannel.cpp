@@ -2605,6 +2605,22 @@ void TwitchChannel::recordFirstMessage(const QString &userId)
     };
 }
 
+// ponytail: pasta match — case-sensitive, tolerant of 1-5 trailing chars
+static bool pastaSimilar(const QString &a, const QString &b)
+{
+    if (a.compare(b, Qt::CaseSensitive) == 0)
+        return true;
+    const int maxTrailing = 5;
+    const auto &shorter = a.length() <= b.length() ? a : b;
+    const auto &longer = a.length() <= b.length() ? b : a;
+    if (shorter.length() < 2)
+        return false;
+    int diff = longer.length() - shorter.length();
+    if (diff == 0 || diff > maxTrailing)
+        return false;
+    return longer.startsWith(shorter, Qt::CaseSensitive);
+}
+
 TwitchChannel::AntispamResult TwitchChannel::checkAntispam(
     const QString &text, const QString &userId, const QString &userName,
     const std::vector<TwitchBadge> &badges, int &outCount)
@@ -2622,8 +2638,8 @@ TwitchChannel::AntispamResult TwitchChannel::checkAntispam(
         return AntispamResult::None;
     }
 
-    auto normalized = text.toLower().trimmed().simplified();
-    if (normalized.isEmpty() || normalized.length() < 3)
+    auto normalized = text.trimmed().simplified();
+    if (normalized.isEmpty() || normalized.length() < 2)
     {
         return AntispamResult::None;
     }
@@ -2650,32 +2666,18 @@ TwitchChannel::AntispamResult TwitchChannel::checkAntispam(
 
     auto now = QDateTime::currentDateTime();
 
-    // per-user spam: same userId repeating same text
+    // per-user spam still uses the recentMessages_ buffer with a fixed window
     int userMatchCount = 0;
-    // cross-user pasta: different userIds sending same text
-    int pastaMsgCount = 0;
-    std::set<QString> pastaUsers;
-
     for (const auto &msg : this->recentMessages_)
     {
         if (msg.timestamp.secsTo(now) > windowSecs)
-        {
             continue;
-        }
-        if (msg.normalizedText == normalized)
+        if (msg.userId == userId &&
+            msg.normalizedText.compare(normalized, Qt::CaseInsensitive) == 0)
         {
-            if (msg.userId == userId)
-            {
-                userMatchCount++;
-            }
-            else
-            {
-                pastaUsers.insert(msg.userId);
-                pastaMsgCount++;
-            }
+            userMatchCount++;
         }
     }
-    int pastaUserCount = static_cast<int>(pastaUsers.size());
 
     if (!skipUser)
     {
@@ -2683,12 +2685,66 @@ TwitchChannel::AntispamResult TwitchChannel::checkAntispam(
             {normalized, userId, userName, isVIP, isMod, now});
     }
 
+    // ponytail: pasta uses a rolling session — expires on a gap > windowSecs.
+    // Prune expired sessions first so the counter resets after a pause.
+    std::erase_if(this->pastaSessions_, [&](const PastaSession &s) {
+        return s.lastSeen.secsTo(now) > windowSecs;
+    });
+
+    // ponytail: cap sessions to bound memory/scan cost in busy chats — drop
+    // the oldest when over the limit (one per message keeps it stable)
+    constexpr size_t MAX_PASTA_SESSIONS = 300;
+    if (this->pastaSessions_.size() > MAX_PASTA_SESSIONS)
+    {
+        auto oldest = std::min_element(
+            this->pastaSessions_.begin(), this->pastaSessions_.end(),
+            [](const PastaSession &a, const PastaSession &b) {
+                return a.lastSeen < b.lastSeen;
+            });
+        this->pastaSessions_.erase(oldest);
+    }
+
     bool isSpam = userMatchCount >= threshold && !skipUser;
-    bool isPasta = (pastaUserCount + 1) >= threshold && !skipUser;
+    bool isPasta = false;
+    int pastaCount = 0;
+
+    if (!skipUser)
+    {
+        // find matching active session, or start a new one
+        PastaSession *session = nullptr;
+        for (auto &s : this->pastaSessions_)
+        {
+            if (pastaSimilar(s.text, normalized))
+            {
+                session = &s;
+                break;
+            }
+        }
+        if (!session)
+        {
+            this->pastaSessions_.push_back({normalized, now, {}, 0});
+            session = &this->pastaSessions_.back();
+        }
+
+        session->lastSeen = now;
+        session->users.insert(userId);
+        session->msgCount++;
+
+        // pasta = same text from `threshold` distinct users
+        if (static_cast<int>(session->users.size()) >= threshold)
+        {
+            isPasta = true;
+            pastaCount = session->msgCount;
+        }
+    }
 
     if (isSpam || isPasta)
     {
-        outCount = userMatchCount + pastaMsgCount + 1;
+        if (isPasta)
+            outCount = pastaCount;
+        else
+            outCount = userMatchCount + 1;
+
         auto snapshot = this->getMessageSnapshot(100);
         for (const auto &msg : snapshot)
         {
@@ -2700,20 +2756,19 @@ TwitchChannel::AntispamResult TwitchChannel::checkAntispam(
             {
                 continue;
             }
-            if (msg->messageText.toLower().trimmed().simplified() ==
-                normalized)
+            auto msgNorm = msg->messageText.trimmed().simplified();
+            if (isPasta && !msg->flags.has(MessageFlag::Spam))
             {
-                if (isPasta && !msg->flags.has(MessageFlag::Spam))
-                {
+                if (pastaSimilar(msgNorm, normalized))
                     msg->flags.set(MessageFlag::Pasta);
-                }
-                else if (isSpam)
-                {
+            }
+            else if (isSpam)
+            {
+                if (msgNorm.compare(normalized, Qt::CaseInsensitive) == 0)
                     msg->flags.set(MessageFlag::Spam);
-                }
             }
         }
-        getApp()->getWindows()->forceLayoutChannelViews();
+        getApp()->getWindows()->invalidateChannelViewBuffers();
         return isPasta ? AntispamResult::Pasta : AntispamResult::Spam;
     }
 

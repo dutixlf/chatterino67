@@ -68,7 +68,7 @@ struct Message {
     QDateTime serverReceivedTime;
 
     // ponytail: spam repetition count (0 = not spam)
-    int spamCount = 0;
+    mutable int spamCount = 0;
 
     /// List of Twitch badges associated with this message
     std::vector<TwitchBadge> twitchBadges;
