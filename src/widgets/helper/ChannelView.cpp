@@ -2044,6 +2044,16 @@ void ChannelView::wheelEvent(QWheelEvent *event)
 
 void ChannelView::enterEvent(QEnterEvent * /*event*/)
 {
+    // Pause on hover the moment the cursor enters, not only once it moves.
+    if (float pauseTime = getSettings()->pauseOnHoverDuration;
+        pauseTime > 0.001F)
+    {
+        this->pause(PauseReason::Mouse, static_cast<uint32_t>(pauseTime * 1000.F));
+    }
+    else if (pauseTime < -0.5F)  // -1 == "Indefinite"
+    {
+        this->pause(PauseReason::Mouse);
+    }
 }
 
 void ChannelView::leaveEvent(QEvent * /*event*/)

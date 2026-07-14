@@ -518,6 +518,32 @@ void TwitchChannel::addChannelPointReward(const ChannelPointReward &reward)
 
     if (!reward.isUserInputRequired)
     {
+        // Stack a repeated redemption (same reward + same user) onto the
+        // existing message as ×N instead of adding a new line. The combo
+        // resets naturally once the previous one scrolls past the last 100
+        // messages (it falls out of the snapshot below).
+        if (getSettings()->stackChannelPointRedemptions)
+        {
+            auto snapshot = this->getMessageSnapshot(100);
+            for (auto it = snapshot.rbegin(); it != snapshot.rend(); ++it)
+            {
+                const auto &prev = *it;
+                if (!prev->reward ||
+                    !prev->flags.has(MessageFlag::RedeemedChannelPointReward))
+                {
+                    continue;
+                }
+                if (prev->reward->id == reward.id &&
+                    prev->reward->user.id == reward.user.id)
+                {
+                    this->replaceMessage(
+                        prev, MessageBuilder::makeChannelPointRewardMessage(
+                                  reward, this->isMod(), this->isBroadcaster(),
+                                  prev->count + 1));
+                    return;
+                }
+            }
+        }
         this->addMessage(MessageBuilder::makeChannelPointRewardMessage(
                              reward, this->isMod(), this->isBroadcaster()),
                          MessageContext::Original);
@@ -2704,11 +2730,12 @@ TwitchChannel::AntispamResult TwitchChannel::checkAntispam(
         this->pastaSessions_.erase(oldest);
     }
 
-    bool isSpam = userMatchCount >= threshold && !skipUser;
+    bool isSpam = getSettings()->antispamDetectSpam &&
+                  userMatchCount >= threshold && !skipUser;
     bool isPasta = false;
     int pastaCount = 0;
 
-    if (!skipUser)
+    if (!skipUser && getSettings()->antispamDetectPasta)
     {
         // find matching active session, or start a new one
         PastaSession *session = nullptr;

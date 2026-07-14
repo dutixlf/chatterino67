@@ -1271,6 +1271,14 @@ void NotebookTab::mouseMoveEvent(QMouseEvent *event)
 
 void NotebookTab::wheelEvent(QWheelEvent *event)
 {
+    // In single-row mode the wheel scrolls the tab strip instead of switching
+    // tabs.
+    if (getSettings()->scrollableTabs &&
+        this->notebook_->scrollTabs(event->angleDelta().y()))
+    {
+        return;
+    }
+
     const auto defaultMouseDelta = 120;
     const auto verticalDelta = event->angleDelta().y();
     const auto selectTab = [this](int delta) {

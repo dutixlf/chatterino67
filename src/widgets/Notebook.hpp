@@ -102,6 +102,13 @@ public:
      **/
     void selectLastTab(bool focusPage = true);
 
+    /**
+     * @brief Scroll the single-row tab strip horizontally (scrollableTabs).
+     * @param delta mouse-wheel angle delta; positive scrolls left.
+     * @return true if the scroll was handled (feature on + top/bottom tabs).
+     **/
+    bool scrollTabs(int delta);
+
     int getPageCount() const;
     QWidget *getPageAt(int index) const;
     int getSelectedIndex() const;
@@ -227,6 +234,10 @@ private:
     bool showAddButton_ = false;
     int lineOffset_ = 20;
     bool lockNotebookLayout_ = false;
+
+    // Horizontal scroll offset (px) for the single-row scrollable tab strip
+    // (getSettings()->scrollableTabs). 0 when the feature is off.
+    int tabScrollOffset_ = 0;
 
     bool refreshPaused_ = false;
     bool refreshRequested_ = false;

@@ -14,6 +14,7 @@
 #include "controllers/notifications/NotificationController.hpp"
 #include "providers/kick/KickAccount.hpp"
 #include "providers/kick/KickChannel.hpp"
+#include "providers/twitch/api/TwitchGql.hpp"
 #include "providers/twitch/TwitchAccount.hpp"
 #include "providers/twitch/TwitchChannel.hpp"
 #include "providers/twitch/TwitchIrcServer.hpp"
@@ -29,8 +30,10 @@
 #include "widgets/dialogs/SelectChannelDialog.hpp"
 #include "widgets/dialogs/SelectChannelFiltersDialog.hpp"
 #include "widgets/dialogs/UserInfoPopup.hpp"
+#include "messages/MessageBuilder.hpp"
 #include "widgets/helper/ChannelView.hpp"
 #include "widgets/helper/DebugPopup.hpp"
+#include "widgets/helper/MessageView.hpp"
 #include "widgets/helper/NotebookTab.hpp"
 #include "widgets/helper/ResizingTextEdit.hpp"
 #include "widgets/helper/SearchPopup.hpp"
@@ -46,16 +49,23 @@
 
 #include <QApplication>
 #include <QDesktopServices>
+#include <QUrl>
 #include <QDrag>
+#include <QFont>
+#include <QHBoxLayout>
 #include <QJsonArray>
 #include <QLabel>
 #include <QListWidget>
 #include <QMimeData>
+#include <QMouseEvent>
 #include <QMovie>
 #include <QPainter>
+#include <QPushButton>
 #include <QSet>
+#include <QTimer>
 #include <QVBoxLayout>
 
+#include <algorithm>
 #include <functional>
 
 namespace chatterino {
@@ -108,6 +118,64 @@ Split::Split(QWidget *parent)
     this->vbox_->addWidget(this->header_);
     this->vbox_->addWidget(this->view_, 1);
     this->vbox_->addWidget(this->input_);
+
+    // Pinned-message banner: a dim "pinned by" line above the pinned message
+    // (rendered with the channel's chat emotes). Sits between the header and
+    // the chat view, hidden until something is pinned.
+    this->pinnedBanner_ = new QWidget(this);
+    {
+        auto *bannerLayout = new QVBoxLayout(this->pinnedBanner_);
+        bannerLayout->setContentsMargins(8, 3, 6, 4);
+        bannerLayout->setSpacing(1);
+
+        auto *topRow = new QHBoxLayout();
+        topRow->setContentsMargins(0, 0, 0, 0);
+        topRow->setSpacing(6);
+
+        this->pinnedByLabel_ = new QLabel(this->pinnedBanner_);
+        this->pinnedByLabel_->setTextFormat(Qt::PlainText);
+        {
+            QFont f = this->pinnedByLabel_->font();
+            f.setPointSizeF(std::max(6.0, f.pointSizeF() - 1.0));
+            this->pinnedByLabel_->setFont(f);
+        }
+        // Dim / semi-transparent header text (neutral gray works on any theme).
+        this->pinnedByLabel_->setStyleSheet(
+            QStringLiteral("color: rgba(128, 128, 128, 200);"));
+        this->pinnedByLabel_->setCursor(Qt::PointingHandCursor);
+        this->pinnedByLabel_->installEventFilter(this);
+        topRow->addWidget(this->pinnedByLabel_);
+        topRow->addStretch(1);
+
+        auto *closeButton = new QPushButton(QStringLiteral("✕"),
+                                            this->pinnedBanner_);
+        closeButton->setFlat(true);
+        closeButton->setFixedSize(18, 18);
+        closeButton->setCursor(Qt::PointingHandCursor);
+        QObject::connect(closeButton, &QPushButton::clicked, this, [this] {
+            // Dismiss until a different message is pinned.
+            this->pinnedDismissedId_ = this->pinnedCurrentId_;
+            this->pinnedBanner_->hide();
+        });
+        topRow->addWidget(closeButton);
+
+        bannerLayout->addLayout(topRow);
+
+        this->pinnedMessageView_ = new MessageView();
+        this->pinnedMessageView_->setMouseTracking(true);
+        this->pinnedMessageView_->installEventFilter(this);
+        bannerLayout->addWidget(this->pinnedMessageView_);
+    }
+    this->pinnedBanner_->hide();
+    this->vbox_->insertWidget(1, this->pinnedBanner_);
+
+    // Poll the current pinned message every 5s (Twitch GQL); the timer is only
+    // running while a Twitch channel is open and the user is logged in.
+    this->pinnedPollTimer_ = new QTimer(this);
+    this->pinnedPollTimer_->setInterval(5000);
+    QObject::connect(this->pinnedPollTimer_, &QTimer::timeout, this, [this] {
+        this->fetchPinnedMessage();
+    });
 
     this->input_->ui_.textEdit->installEventFilter(parent);
 
@@ -927,6 +995,222 @@ ChannelPtr Split::getSelectedChannel() const
     return chan;
 }
 
+void Split::updatePinnedBanner(const MessagePtr &message,
+                               const QString &pinnedBy)
+{
+    if (this->pinnedBanner_ == nullptr)
+    {
+        return;
+    }
+    if (!getSettings()->showPinnedBanner || message == nullptr)
+    {
+        this->pinnedByLogin_.clear();
+        this->pinnedBanner_->hide();
+        return;
+    }
+
+    if (pinnedBy.isEmpty())
+    {
+        this->pinnedByLabel_->hide();
+    }
+    else
+    {
+        this->pinnedByLabel_->setText(
+            QStringLiteral("pinned by %1").arg(pinnedBy));
+        this->pinnedByLabel_->show();
+    }
+
+    this->pinnedMessageView_->setFullMessage(message);
+    this->updatePinnedBannerWidth();
+    this->pinnedBanner_->show();
+}
+
+void Split::updatePinnedBannerWidth()
+{
+    if (this->pinnedMessageView_ == nullptr || this->pinnedBanner_ == nullptr)
+    {
+        return;
+    }
+    // Banner content width minus the vbox horizontal margins (8 + 6).
+    int w = this->pinnedBanner_->width() - 14;
+    if (w <= 0)
+    {
+        w = std::max(0, this->width() - 14);
+    }
+    this->pinnedMessageView_->setWidth(w);
+}
+
+bool Split::eventFilter(QObject *watched, QEvent *event)
+{
+    // Pinned message: clickable links (URLs open in browser, usernames
+    // open the profile popup). Update the cursor on hover.
+    if (watched == this->pinnedMessageView_)
+    {
+        if (event->type() == QEvent::MouseMove)
+        {
+            auto *me = static_cast<QMouseEvent *>(event);
+            auto link = this->pinnedMessageView_->linkAt(me->position());
+            bool clickable = link.type == Link::Url ||
+                             link.type == Link::UserInfo;
+            this->pinnedMessageView_->setCursor(clickable
+                                                    ? Qt::PointingHandCursor
+                                                    : Qt::ArrowCursor);
+            return false;
+        }
+        if (event->type() == QEvent::MouseButtonRelease)
+        {
+            auto *me = static_cast<QMouseEvent *>(event);
+            if (me->button() == Qt::LeftButton)
+            {
+                auto link =
+                    this->pinnedMessageView_->linkAt(me->position());
+                if (link.type == Link::Url)
+                {
+                    QDesktopServices::openUrl(QUrl(link.value));
+                    return true;
+                }
+                if (link.type == Link::UserInfo)
+                {
+                    this->view_->showUserInfoPopup(
+                        link.value, MessagePlatform::AnyOrTwitch);
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    // "pinned by X" line: opens the pinner's profile.
+    if (watched == this->pinnedByLabel_ &&
+        event->type() == QEvent::MouseButtonRelease)
+    {
+        auto *me = static_cast<QMouseEvent *>(event);
+        if (me->button() == Qt::LeftButton && !this->pinnedByLogin_.isEmpty())
+        {
+            this->view_->showUserInfoPopup(this->pinnedByLogin_,
+                                           MessagePlatform::AnyOrTwitch);
+            return true;
+        }
+    }
+
+    return BaseWidget::eventFilter(watched, event);
+}
+
+void Split::startOrStopPinnedTimer()
+{
+    if (this->pinnedPollTimer_ == nullptr)
+    {
+        return;
+    }
+
+    auto *tc = dynamic_cast<TwitchChannel *>(this->channel_.get().get());
+    auto account = getApp()->getAccounts()->twitch.getCurrent();
+    // Note: we intentionally do NOT require roomId() here — it resolves
+    // asynchronously after joining, so the timer must run and re-check it each
+    // tick (fetchPinnedMessage() no-ops until the id is available).
+    const bool active =
+        getSettings()->showPinnedBanner && tc != nullptr && !account->isAnon();
+
+    if (active)
+    {
+        if (!this->pinnedPollTimer_->isActive())
+        {
+            this->pinnedPollTimer_->start();
+        }
+    }
+    else
+    {
+        this->pinnedPollTimer_->stop();
+    }
+}
+
+void Split::fetchPinnedMessage()
+{
+    if (!getSettings()->showPinnedBanner)
+    {
+        this->updatePinnedBanner(nullptr, QString());
+        return;
+    }
+
+    auto *tc = dynamic_cast<TwitchChannel *>(this->channel_.get().get());
+    if (tc == nullptr)
+    {
+        this->updatePinnedBanner(nullptr, QString());
+        return;
+    }
+
+    auto account = getApp()->getAccounts()->twitch.getCurrent();
+    if (account->isAnon())
+    {
+        this->updatePinnedBanner(nullptr, QString());
+        return;
+    }
+
+    const QString roomId = tc->roomId();
+    if (roomId.isEmpty())
+    {
+        return;
+    }
+
+    if (this->pinnedInFlight_)
+    {
+        return;
+    }
+    this->pinnedInFlight_ = true;
+
+    qCDebug(chatterinoTwitch) << "[pinned] fetching for room" << roomId;
+
+    TwitchGql::fetchPinnedChatMessage(
+        roomId, 1, account->getOAuthToken(), account->getOAuthClient(), this,
+        [this, roomId](std::optional<TwitchGql::PinnedChatMessage> pinned) {
+            this->pinnedInFlight_ = false;
+            qCDebug(chatterinoTwitch)
+                << "[pinned] result for" << roomId
+                << "has=" << pinned.has_value()
+                << (pinned.has_value() ? pinned->text : QString())
+                << "pinnedBy="
+                << (pinned.has_value() ? pinned->pinnedByDisplayName
+                                       : QString());
+            // Guard against the split switching channels mid-request.
+            auto *cur =
+                dynamic_cast<TwitchChannel *>(this->channel_.get().get());
+            if (cur == nullptr || cur->roomId() != roomId)
+            {
+                return;
+            }
+            if (!pinned.has_value())
+            {
+                this->pinnedCurrentId_.clear();
+                this->updatePinnedBanner(nullptr, QString());
+                return;
+            }
+            this->pinnedCurrentId_ = pinned->id;
+            if (!pinned->id.isEmpty() &&
+                pinned->id == this->pinnedDismissedId_)
+            {
+                this->updatePinnedBanner(nullptr, QString());
+                return;
+            }
+            this->pinnedByLogin_ = pinned->pinnedByLogin.isEmpty()
+                                       ? pinned->pinnedByDisplayName.toLower()
+                                       : pinned->pinnedByLogin;
+            auto msg = MessageBuilder::makePinnedChatPreviewMessage(
+                cur, pinned->senderDisplayName, pinned->senderLogin,
+                pinned->senderId, pinned->senderChatColor, pinned->text);
+            this->updatePinnedBanner(msg, pinned->pinnedByDisplayName);
+        },
+        [this, roomId](const QString &err) {
+            this->pinnedInFlight_ = false;
+            qCDebug(chatterinoTwitch) << "[pinned] error for" << roomId << err;
+            auto *cur =
+                dynamic_cast<TwitchChannel *>(this->channel_.get().get());
+            if (cur != nullptr && cur->roomId() == roomId)
+            {
+                this->updatePinnedBanner(nullptr, QString());
+            }
+        });
+}
+
 void Split::setChannel(IndirectChannel newChannel)
 {
     this->channel_ = newChannel;
@@ -992,6 +1276,14 @@ void Split::setChannel(IndirectChannel newChannel)
     this->header_->updateIcons();
     this->header_->updateChannelText();
     this->header_->updateRoomModes();
+
+    // Reset the pinned-message banner for the new channel and (re)start polling.
+    this->pinnedCurrentId_.clear();
+    this->pinnedDismissedId_.clear();
+    this->pinnedInFlight_ = false;
+    this->updatePinnedBanner(nullptr, QString());
+    this->startOrStopPinnedTimer();
+    this->fetchPinnedMessage();
 
     this->channelSignalHolder_.managedConnect(
         this->channel_.get()->displayNameChanged, [this] {
@@ -1130,6 +1422,9 @@ void Split::resizeEvent(QResizeEvent *event)
     BaseWidget::resizeEvent(event);
 
     this->overlay_->setGeometry(this->rect());
+
+    // Re-flow the pinned message to the new width.
+    this->updatePinnedBannerWidth();
 }
 
 void Split::enterEvent(QEnterEvent * /*event*/)

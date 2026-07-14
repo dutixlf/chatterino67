@@ -16,6 +16,8 @@
 #include <QVBoxLayout>
 #include <QWidget>
 
+class QLabel;
+
 namespace chatterino {
 
 class ChannelView;
@@ -25,6 +27,7 @@ class SplitContainer;
 class SplitOverlay;
 class SelectChannelDialog;
 class OverlayWindow;
+class MessageView;
 
 // Each ChatWidget consists of three sub-elements that handle their own part of
 // the chat widget: ChatWidgetHeader
@@ -123,6 +126,10 @@ protected:
     void dragEnterEvent(QDragEnterEvent *event) override;
     void dropEvent(QDropEvent *event) override;
 
+    // Handles clicks on the pinned-message banner (open profile of the pinner
+    // / the message author).
+    bool eventFilter(QObject *watched, QEvent *event) override;
+
 private:
     void channelNameUpdated(const QString &newChannelName);
     void handleModifiers(Qt::KeyboardModifiers modifiers);
@@ -156,6 +163,16 @@ private:
 
     void refreshInputState(const QString &inputText);
 
+    /// Show/hide the top pinned-message banner. A null message hides it.
+    void updatePinnedBanner(const MessagePtr &message, const QString &pinnedBy);
+    /// (Re)apply the pinned MessageView width to the current banner width.
+    void updatePinnedBannerWidth();
+    /// Poll the current pinned message (Twitch GQL) and refresh the banner.
+    void fetchPinnedMessage();
+    /// Start/stop the pinned-message poll timer based on the current channel,
+    /// login state and the showPinnedBanner setting.
+    void startOrStopPinnedTimer();
+
     IndirectChannel channel_;
 
     bool moderationMode_{};
@@ -169,6 +186,17 @@ private:
     ChannelView *const view_;
     SplitInput *const input_;
     SplitOverlay *const overlay_;
+
+    // Top pinned-message banner (created in the ctor, hidden until a message
+    // is pinned). Populated by polling Twitch GQL.
+    QWidget *pinnedBanner_ = nullptr;
+    QLabel *pinnedByLabel_ = nullptr;       // dim "pinned by X" header line
+    MessageView *pinnedMessageView_ = nullptr;  // message with chat emotes
+    QTimer *pinnedPollTimer_ = nullptr;
+    QString pinnedCurrentId_;
+    QString pinnedDismissedId_;
+    QString pinnedByLogin_;  // who pinned it (clickable "pinned by" line)
+    bool pinnedInFlight_ = false;
 
     QPointer<OverlayWindow> overlayWindow_;
 

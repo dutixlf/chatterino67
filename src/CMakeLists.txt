@@ -562,6 +562,8 @@ set(SOURCE_FILES
 
         providers/twitch/api/Helix.cpp
         providers/twitch/api/Helix.hpp
+        providers/twitch/api/TwitchGql.cpp
+        providers/twitch/api/TwitchGql.hpp
 
         singletons/CrashHandler.cpp
         singletons/CrashHandler.hpp

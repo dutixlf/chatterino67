@@ -339,6 +339,15 @@ void MessageLayoutContainer::addSelectionText(QString &str, uint32_t from,
 
     for (const auto &element : this->elements_)
     {
+        if (element->getCreator().getFlags().has(
+                MessageElementFlag::NonCopyable))
+        {
+            // Never copy decorative elements (e.g. the ×N spam counter).
+            // Still advance the index so partial selections stay aligned.
+            index += element->getSelectionIndexCount();
+            continue;
+        }
+
         if (copymode != CopyMode::Everything &&
             element->getCreator().getFlags().has(
                 MessageElementFlag::RepliedMessage))

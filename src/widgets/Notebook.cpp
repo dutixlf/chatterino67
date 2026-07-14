@@ -790,7 +790,36 @@ void Notebook::performLayout(bool animated)
         {
             this->addButton_->raise();
         }
+
+        // Keep the fixed buttons (settings, user, ...) above tabs that scroll
+        // underneath them in single-row mode.
+        if (getSettings()->scrollableTabs)
+        {
+            for (auto *btn : this->customButtons_)
+            {
+                btn->raise();
+            }
+        }
     }
+}
+
+bool Notebook::scrollTabs(int delta)
+{
+    if (!getSettings()->scrollableTabs)
+    {
+        return false;
+    }
+    if (this->tabLocation_ != NotebookTabLocation::Top &&
+        this->tabLocation_ != NotebookTabLocation::Bottom)
+    {
+        return false;
+    }
+
+    // Positive delta (wheel up) scrolls left; negative scrolls right.
+    // performLayout() clamps the offset to the available overflow.
+    this->tabScrollOffset_ = std::max(0, this->tabScrollOffset_ - delta);
+    this->performLayout();
+    return true;
 }
 
 void Notebook::performHorizontalLayout(const LayoutContext &ctx, bool animated)
@@ -819,8 +848,45 @@ void Notebook::performHorizontalLayout(const LayoutContext &ctx, bool animated)
         consumedButtonHeights = ctx.tabHeight;
     }
 
-    if (this->showTabs_)
+    if (this->showTabs_ && getSettings()->scrollableTabs)
     {
+        // Single scrollable row: never wrap, offset all tabs by the current
+        // horizontal scroll. Tabs sliding off either edge are clipped to the
+        // notebook by Qt's normal child clipping.
+        const int tabsStartX = x;
+
+        int totalWidth = ctx.addButtonWidth;
+        for (auto &item : ctx.items)
+        {
+            totalWidth += item.tab->width() + ctx.tabSpacer;
+        }
+        const int available = this->width() - tabsStartX;
+        const int maxOffset = std::max(0, totalWidth - available);
+        this->tabScrollOffset_ =
+            std::clamp(this->tabScrollOffset_, 0, maxOffset);
+
+        int tx = tabsStartX - this->tabScrollOffset_;
+        for (auto &item : ctx.items)
+        {
+            item.tab->growWidth(0);
+            item.tab->moveAnimated(QPoint(tx, y), animated);
+            item.tab->setInLastRow(true);
+            tx += item.tab->width() + ctx.tabSpacer;
+        }
+
+        if (this->showAddButton_)
+        {
+            this->addButton_->move(tx, y);
+        }
+
+        if (!isBottom)
+        {
+            y += ctx.tabHeight;
+        }
+    }
+    else if (this->showTabs_)
+    {
+        this->tabScrollOffset_ = 0;
         // layout tabs
         /// Notebook tabs need to know if they are in the last row.
         auto *firstInBottomRow =

@@ -181,10 +181,19 @@ public:
                                   const HighlightAlert &alert);
 
     void appendChannelPointRewardMessage(const ChannelPointReward &reward,
-                                         bool isMod, bool isBroadcaster);
+                                         bool isMod, bool isBroadcaster,
+                                         uint32_t count = 1);
 
     static MessagePtr makeChannelPointRewardMessage(
-        const ChannelPointReward &reward, bool isMod, bool isBroadcaster);
+        const ChannelPointReward &reward, bool isMod, bool isBroadcaster,
+        uint32_t count = 1);
+
+    /// Build a preview message (username + text with the channel's chat
+    /// emotes resolved) for the pinned-message banner.
+    static MessagePtr makePinnedChatPreviewMessage(
+        TwitchChannel *channel, const QString &senderDisplay,
+        const QString &senderLogin, const QString &senderId,
+        const QString &senderColor, const QString &text);
 
     /// Make a "CHANNEL_NAME has gone live!" message
     static MessagePtr makeLiveMessage(const QString &channelName,

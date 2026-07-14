@@ -53,6 +53,7 @@ void MessageView::setMessage(const MessagePtr &message)
         return;
     }
 
+    this->fullMessage_ = false;
     auto singleLineMessage = std::make_shared<Message>();
     singleLineMessage->elements.emplace_back(
         std::make_unique<SingleLineTextElement>(
@@ -63,9 +64,36 @@ void MessageView::setMessage(const MessagePtr &message)
     this->layoutMessage();
 }
 
+void MessageView::setFullMessage(const MessagePtr &message)
+{
+    if (!message)
+    {
+        return;
+    }
+
+    this->fullMessage_ = true;
+    this->message_ = message;
+    this->createMessageLayout();
+    this->layoutMessage();
+}
+
 void MessageView::clearMessage()
 {
     this->setMessage(nullptr);
+}
+
+Link MessageView::linkAt(QPointF point) const
+{
+    if (this->messageLayout_ == nullptr)
+    {
+        return {};
+    }
+    const auto *element = this->messageLayout_->getElementAt(point);
+    if (element == nullptr)
+    {
+        return {};
+    }
+    return element->getLink();
 }
 
 void MessageView::setWidth(int width)
@@ -124,10 +152,14 @@ void MessageView::layoutMessage()
         return;
     }
 
+    const auto flags = this->fullMessage_
+                           ? getApp()->getWindows()->getWordFlags()
+                           : MessageElementFlags(MESSAGE_FLAGS);
+
     bool updateRequired = this->messageLayout_->layout(
         {
             .messageColors = this->messageColors_,
-            .flags = MESSAGE_FLAGS,
+            .flags = flags,
             .width = this->width_,
             .scale = this->scale(),
             .imageScale =

@@ -5,6 +5,7 @@
 #pragma once
 
 #include "messages/layouts/MessageLayoutContext.hpp"
+#include "messages/Link.hpp"
 #include "messages/Message.hpp"
 #include "widgets/BaseWidget.hpp"
 
@@ -29,9 +30,16 @@ public:
     MessageView &operator=(MessageView &&) = delete;
 
     void setMessage(const MessagePtr &message);
+    /// Like setMessage, but keeps the message's own elements (badges, emote
+    /// images, username, ...) instead of flattening it to a single line of
+    /// text. Used to preview a full chat message (e.g. the pinned message).
+    void setFullMessage(const MessagePtr &message);
     void clearMessage();
 
     void setWidth(int width);
+
+    /// Returns the Link at @a point (local coordinates), or an invalid Link.
+    Link linkAt(QPointF point) const;
 
 protected:
     void paintEvent(QPaintEvent *event) override;
@@ -43,6 +51,9 @@ private:
     void layoutMessage();
 
     MessagePtr message_;
+    // When true, lay out with the normal chat word-flags (emote images etc.)
+    // instead of the flattened single-line text flags.
+    bool fullMessage_ = false;
     std::unique_ptr<MessageLayout> messageLayout_;
 
     MessageColors messageColors_;

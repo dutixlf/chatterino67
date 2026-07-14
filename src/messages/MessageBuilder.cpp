@@ -1242,7 +1242,8 @@ void MessageBuilder::triggerHighlights(const Channel *channel,
 }
 
 void MessageBuilder::appendChannelPointRewardMessage(
-    const ChannelPointReward &reward, bool isMod, bool isBroadcaster)
+    const ChannelPointReward &reward, bool isMod, bool isBroadcaster,
+    uint32_t count)
 {
     if (isIgnoredMessage({
             .message = {},
@@ -1291,11 +1292,20 @@ void MessageBuilder::appendChannelPointRewardMessage(
             "bits", MessageElementFlag::ChannelPointReward, MessageColor::Text,
             FontStyle::ChatMediumBold);
     }
+    if (count > 1)
+    {
+        this->emplace<TextElement>(
+            u"×%1"_s.arg(count),
+            MessageElementFlags{MessageElementFlag::ChannelPointReward,
+                                MessageElementFlag::NonCopyable},
+            MessageColor::Text, FontStyle::ChatMediumBold);
+    }
     if (reward.isUserInputRequired)
     {
         this->emplace<LinebreakElement>(MessageElementFlag::ChannelPointReward);
     }
 
+    this->message().count = count;
     this->message().flags.set(MessageFlag::RedeemedChannelPointReward);
 
     textList.append({redeemed, reward.title, QString::number(reward.cost)});
@@ -1310,11 +1320,60 @@ void MessageBuilder::appendChannelPointRewardMessage(
 }
 
 MessagePtr MessageBuilder::makeChannelPointRewardMessage(
-    const ChannelPointReward &reward, bool isMod, bool isBroadcaster)
+    const ChannelPointReward &reward, bool isMod, bool isBroadcaster,
+    uint32_t count)
 {
     MessageBuilder builder;
 
-    builder.appendChannelPointRewardMessage(reward, isMod, isBroadcaster);
+    builder.appendChannelPointRewardMessage(reward, isMod, isBroadcaster,
+                                            count);
+
+    return builder.release();
+}
+
+MessagePtr MessageBuilder::makePinnedChatPreviewMessage(
+    TwitchChannel *channel, const QString &senderDisplay,
+    const QString &senderLogin, const QString &senderId,
+    const QString &senderColor, const QString &text)
+{
+    MessageBuilder builder;
+    if (channel != nullptr)
+    {
+        builder->channelName = channel->getName();
+    }
+
+    QString login = senderLogin.trimmed();
+    if (login.isEmpty())
+    {
+        login = senderDisplay.trimmed().toLower();
+    }
+    builder->loginName = login;
+    builder->userID = senderId;
+
+    QVariantMap colorTags;
+    colorTags.insert(QStringLiteral("user-id"), senderId);
+    if (!senderColor.isEmpty())
+    {
+        colorTags.insert(QStringLiteral("color"), senderColor);
+    }
+    builder.parseUsernameColor(colorTags, senderId);
+
+    MessageParseArgs args;
+    QVariantMap userTags;
+    userTags.insert(QStringLiteral("display-name"), senderDisplay);
+    builder.appendUsername(userTags, args);
+
+    // Resolve the channel's chat emotes (7TV/BTTV/FFZ by name) in the text.
+    // Native Twitch emotes aren't available here (no position tags from GQL).
+    std::vector<TwitchEmoteOccurrence> twitchEmotes;
+    TextState state{.twitchChannel = channel, .userID = senderId};
+    if (!text.isEmpty())
+    {
+        builder.addWords(text.split(' '), twitchEmotes, state);
+    }
+
+    builder->messageText = text;
+    builder->searchText = text;
 
     return builder.release();
 }
@@ -2017,8 +2076,9 @@ std::pair<MessagePtrMut, HighlightAlert> MessageBuilder::makeIrcMessage(
     {
         builder.emplace<TextElement>(
             QStringLiteral(" ×%1").arg(builder->spamCount),
-            MessageElementFlag::Text, MessageColor::System,
-            FontStyle::ChatMedium);
+            MessageElementFlags{MessageElementFlag::Text,
+                                MessageElementFlag::NonCopyable},
+            MessageColor::System, FontStyle::ChatMedium);
     }
 
     return {builder.release(), highlight};

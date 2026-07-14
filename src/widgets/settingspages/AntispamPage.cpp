@@ -68,6 +68,18 @@ AntispamPage::AntispamPage()
     }
 
     {
+        auto *grp = new QGroupBox("Detect");
+        auto *grpLayout = new QVBoxLayout(grp);
+        grpLayout->addWidget(this->createCheckBox(
+            "Spam (same user repeating a message)",
+            getSettings()->antispamDetectSpam));
+        grpLayout->addWidget(this->createCheckBox(
+            "Pasta (different users sending the same message)",
+            getSettings()->antispamDetectPasta));
+        layout.append(grp);
+    }
+
+    {
         auto *form = new QFormLayout();
 
         auto *threshold = new QSpinBox();

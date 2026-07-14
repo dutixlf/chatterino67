@@ -234,6 +234,9 @@ public:
         "/appearance/tabStyle",
         TabStyle::Normal,
     };
+    // Keep top/bottom tabs on a single row and scroll them horizontally with
+    // the mouse wheel instead of wrapping onto multiple rows.
+    BoolSetting scrollableTabs = {"/appearance/scrollableTabs", false};
     BoolSetting hidePreferencesButton = {"/appearance/hidePreferencesButton",
                                          false};
     BoolSetting hideUserButton = {"/appearance/hideUserButton", false};
@@ -430,6 +433,16 @@ public:
         "/highlighting/antispam/ignoreMods", false};
     QStringSetting antispamPastaColor = {"/highlighting/antispam/pastaColor",
                                          "#4B6495ED"};
+    BoolSetting antispamDetectSpam = {"/highlighting/antispam/detectSpam", true};
+    BoolSetting antispamDetectPasta = {"/highlighting/antispam/detectPasta",
+                                       true};
+    // Stack repeated channel-point redemptions (same reward + same user)
+    // into one message with a ×N counter instead of spamming new lines.
+    BoolSetting stackChannelPointRedemptions = {
+        "/behaviour/stackChannelPointRedemptions", true};
+    // Show a banner at the top of the chat for the current pinned message
+    // (moderator pins and Hype Chat, via the pinned-chat PubSub topic).
+    BoolSetting showPinnedBanner = {"/appearance/showPinnedBanner", true};
     QStringSetting firstMessageColor = {"/highlighting/firstMessage/color",
                                         ""};
     BoolSetting alwaysIncludeBroadcasterInUserCompletions = {

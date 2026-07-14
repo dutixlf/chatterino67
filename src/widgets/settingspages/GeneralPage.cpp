@@ -238,6 +238,13 @@ void GeneralPage::initLayout(GeneralPageView &layout)
 
     SettingWidget::dropdown("Tab style", s.tabStyle)->addTo(layout);
 
+    SettingWidget::checkbox("Single scrollable row of tabs", s.scrollableTabs)
+        ->setTooltip(
+            "Keep all tabs on one row and scroll them horizontally with the "
+            "mouse wheel instead of wrapping onto multiple rows. Applies to "
+            "top/bottom tab bars.")
+        ->addTo(layout);
+
     layout.addWidget(new FontSettingWidget(s.chatFontFamily, s.chatFontSize,
                                            s.chatFontWeight),
                      {"font", "weight", "size"});
@@ -513,6 +520,21 @@ void GeneralPage::initLayout(GeneralPageView &layout)
     SettingWidget::checkbox("Hide deleted messages", s.hideModerated)
         ->setTooltip(
             "When enabled, messages deleted by moderators will be hidden.")
+        ->addTo(layout);
+
+    SettingWidget::checkbox("Stack repeated channel point redemptions",
+                            s.stackChannelPointRedemptions)
+        ->setTooltip(
+            "When the same user redeems the same reward again within the last "
+            "100 messages, stack it onto the existing message as ×2, ×3, ... "
+            "instead of adding a new line.")
+        ->addTo(layout);
+
+    SettingWidget::checkbox("Show pinned message banner at the top of chat",
+                            s.showPinnedBanner)
+        ->setTooltip(
+            "Shows the current pinned message (moderator pins and Hype Chat) "
+            "in a banner at the top of the chat.")
         ->addTo(layout);
 
     SettingWidget::checkbox("Hide message timestamps when channel is live",
