@@ -1860,7 +1860,8 @@ void ChannelView::drawMessages(QPainter &painter, const QRect &area)
                 painter.setPen(QPen(outlineColor, 2));
                 painter.setBrush(Qt::NoBrush);
                 painter.drawRect(QRectF{
-                    0, ctx.y, layout->getWidth(), layout->getHeight()});
+                    0, qreal(ctx.y), qreal(layout->getWidth()),
+                    qreal(layout->getHeight())});
             }
 
             // Moderation background fill on hovered message
@@ -1868,8 +1869,8 @@ void ChannelView::drawMessages(QPainter &painter, const QRect &area)
                 getSettings()->moderationBackground)
             {
                 painter.fillRect(
-                    QRectF{0, ctx.y, layout->getWidth(),
-                           layout->getHeight()},
+                    QRectF{0, qreal(ctx.y), qreal(layout->getWidth()),
+                           qreal(layout->getHeight())},
                     QColor(getSettings()->moderationBackgroundColor));
             }
         }
