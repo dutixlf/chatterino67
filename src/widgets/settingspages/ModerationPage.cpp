@@ -5,6 +5,9 @@
 #include "widgets/settingspages/ModerationPage.hpp"
 
 #include "Application.hpp"
+#include "controllers/hotkeys/Hotkey.hpp"
+#include "controllers/hotkeys/HotkeyController.hpp"
+#include "controllers/hotkeys/HotkeyModel.hpp"
 #include "controllers/logging/ChannelLoggingModel.hpp"
 #include "controllers/moderationactions/ModerationAction.hpp"
 #include "controllers/moderationactions/ModerationActionModel.hpp"
@@ -15,20 +18,59 @@
 #include "util/LayoutCreator.hpp"
 #include "util/LoadPixmap.hpp"
 #include "util/PostToThread.hpp"
+#include "widgets/dialogs/AddModKeybindDialog.hpp"
 #include "widgets/helper/EditableModelView.hpp"
 #include "widgets/helper/IconDelegate.hpp"
 #include "widgets/settingspages/SettingWidget.hpp"
 
 #include <QFileDialog>
+#include <QFormLayout>
+#include <QGroupBox>
 #include <QHBoxLayout>
 #include <QHeaderView>
+#include <QKeySequenceEdit>
 #include <QLabel>
 #include <QPixmap>
 #include <QPushButton>
 #include <QTableView>
 #include <QtConcurrent/QtConcurrent>
 
+#include "widgets/dialogs/ColorPickerDialog.hpp"
+#include "widgets/helper/color/ColorButton.hpp"
+
 namespace chatterino {
+
+namespace {
+void addColorPicker(QVBoxLayout *parent, const QString &label,
+                    QStringSetting &setting, QWidget *host,
+                    pajlada::Signals::SignalHolder &connections)
+{
+    auto *row = new QHBoxLayout();
+    row->addWidget(new QLabel(label));
+
+    auto *btn = new ColorButton(QColor(setting.getValue()));
+    setting.connect(
+        [btn](const QString &v, const auto &) {
+            btn->setColor(QColor(v));
+        },
+        connections);
+    QObject::connect(btn, &ColorButton::clicked, [host, &setting]() {
+        auto *dlg = new ColorPickerDialog(QColor(setting), host);
+        QObject::connect(dlg, &ColorPickerDialog::colorConfirmed, host,
+                         [&setting](auto selected) {
+                             if (selected.isValid())
+                             {
+                                 setting =
+                                     selected.name(QColor::HexArgb);
+                             }
+                         });
+        dlg->show();
+    });
+    row->addWidget(btn);
+    row->addStretch(1);
+    parent->addLayout(row);
+}
+}  // namespace
 
 qint64 dirSize(QString &dirPath)
 {
@@ -231,6 +273,202 @@ ModerationPage::ModerationPage()
         });
 
     }  // logs end
+
+    auto quickActions = tabs.appendTab(new QVBoxLayout, "Quick Actions");
+    {
+        auto info = quickActions.emplace<QLabel>(
+            "Quick actions let you moderate by hovering a message and "
+            "pressing a keybind.\n"
+            "Visual feedback highlights the message you're about to act on.");
+        info->setWordWrap(true);
+        info->setStyleSheet("color: #bbb");
+
+        // Outline
+        {
+            auto *grp = new QGroupBox("Outline");
+            auto *grpLayout = new QVBoxLayout(grp);
+
+            grpLayout->addWidget(this->createCheckBox(
+                "Show outline on hovered messages",
+                getSettings()->moderationOutline));
+
+            addColorPicker(grpLayout, "Outline color:",
+                           getSettings()->moderationOutlineColor, this,
+                           this->managedConnections_);
+
+            quickActions.append(grp);
+        }
+
+        // Background
+        {
+            auto *grp = new QGroupBox("Background");
+            auto *grpLayout = new QVBoxLayout(grp);
+
+            grpLayout->addWidget(this->createCheckBox(
+                "Change background of hovered messages",
+                getSettings()->moderationBackground));
+
+            addColorPicker(grpLayout, "Background color:",
+                           getSettings()->moderationBackgroundColor, this,
+                           this->managedConnections_);
+
+            quickActions.append(grp);
+        }
+
+        // Keybinds
+        {
+            auto *grp = new QGroupBox("Keybinds");
+            auto *grpLayout = new QVBoxLayout(grp);
+
+            auto *table = new QTableView(grp);
+            auto *model = new QStandardItemModel(0, 3, grp);
+            model->setHorizontalHeaderLabels({"Name", "Action", "Keybinding"});
+            table->setModel(model);
+            table->horizontalHeader()->setStretchLastSection(true);
+            table->horizontalHeader()->setSectionResizeMode(
+                0, QHeaderView::Stretch);
+            table->horizontalHeader()->setSectionResizeMode(
+                1, QHeaderView::Stretch);
+            table->verticalHeader()->setVisible(false);
+            table->setEditTriggers(QAbstractItemView::NoEditTriggers);
+            table->setSelectionBehavior(QAbstractItemView::SelectRows);
+            table->setSelectionMode(QAbstractItemView::SingleSelection);
+
+            static const std::vector<QString> modActionNames = {
+                "modDeleteHoveredMessage",
+                "modTimeoutHoveredUser",
+                "modBanHoveredUser",
+                "modUnbanHoveredUser",
+            };
+
+            auto isModAction = [](const QString &action) {
+                for (const auto &a : modActionNames)
+                {
+                    if (a == action)
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            };
+
+            auto refreshTable = [model, isModAction]() {
+                model->removeRows(0, model->rowCount());
+                auto *hotkeys = getApp()->getHotkeys();
+                for (const auto &hk : hotkeys->getAllHotkeys())
+                {
+                    if (hk->category() != HotkeyCategory::Split ||
+                        !isModAction(hk->action()))
+                    {
+                        continue;
+                    }
+                    auto *nameItem = new QStandardItem();
+                    nameItem->setText(hk->name());
+                    nameItem->setEditable(false);
+
+                    auto *actionItem = new QStandardItem();
+                    actionItem->setText(hk->action());
+                    actionItem->setEditable(false);
+
+                    auto *keyItem = new QStandardItem();
+                    keyItem->setText(hk->toString());
+                    keyItem->setEditable(false);
+
+                    model->appendRow({nameItem, actionItem, keyItem});
+                }
+            };
+
+            refreshTable();
+
+            // Add button
+            auto *btnRow = new QHBoxLayout();
+            auto *addBtn = new QPushButton("Add keybind");
+            auto *removeBtn = new QPushButton("Remove");
+            btnRow->addWidget(addBtn);
+            btnRow->addWidget(removeBtn);
+            btnRow->addStretch();
+
+            QObject::connect(addBtn, &QPushButton::clicked, this,
+                             [table, refreshTable]() {
+                                 AddModKeybindDialog dialog(table);
+                                 if (dialog.exec() == QDialog::Accepted)
+                                 {
+                                     auto newHotkey = dialog.data();
+                                     if (!newHotkey)
+                                     {
+                                         return;
+                                     }
+                                     auto *hotkeys = getApp()->getHotkeys();
+                                     hotkeys->addHotkey(newHotkey);
+                                     hotkeys->save();
+                                     refreshTable();
+                                 }
+                             });
+
+            QObject::connect(
+                removeBtn, &QPushButton::clicked, this,
+                [table, model, refreshTable]() {
+                    auto sel = table->selectionModel()->currentIndex();
+                    if (!sel.isValid())
+                    {
+                        return;
+                    }
+                    auto *nameItem = model->item(sel.row(), 0);
+                    if (!nameItem)
+                    {
+                        return;
+                    }
+                    auto hkName = nameItem->text();
+                    auto *hotkeys = getApp()->getHotkeys();
+                    auto hk = hotkeys->getHotkeyByName(hkName);
+                    if (hk)
+                    {
+                        hotkeys->removeHotkey(hkName);
+                        hotkeys->save();
+                    }
+                    refreshTable();
+                });
+
+            // Double-click to edit
+            QObject::connect(
+                table, &QTableView::doubleClicked, this,
+                [table, model, isModAction, refreshTable](
+                    const QModelIndex &clicked) {
+                    auto *nameItem = model->item(clicked.row(), 0);
+                    if (!nameItem)
+                    {
+                        return;
+                    }
+                    auto hkName = nameItem->text();
+                    auto *hotkeys = getApp()->getHotkeys();
+                    auto existing = hotkeys->getHotkeyByName(hkName);
+
+                    AddModKeybindDialog dialog(table);
+                    dialog.setExisting(existing);
+                    if (dialog.exec() == QDialog::Accepted)
+                    {
+                        auto newHotkey = dialog.data();
+                        if (existing)
+                        {
+                            hotkeys->replaceHotkey(existing->name(),
+                                                   newHotkey);
+                        }
+                        else
+                        {
+                            hotkeys->addHotkey(newHotkey);
+                        }
+                        hotkeys->save();
+                        refreshTable();
+                    }
+                });
+
+            grpLayout->addWidget(table);
+            grpLayout->addLayout(btnRow);
+            quickActions.append(grp);
+        }
+
+        quickActions->addStretch();
+    }  // quick actions end
 
     auto modMode = tabs.appendTab(new QVBoxLayout, "Moderation buttons");
     {

@@ -56,6 +56,15 @@ public:
 
     void save();
     std::shared_ptr<Hotkey> getHotkeyByName(QString name);
+    /// Find the first hotkey matching category + action (or null)
+    std::shared_ptr<Hotkey> getHotkeyByAction(HotkeyCategory category,
+                                               const QString &action);
+    /// Append a new hotkey
+    int addHotkey(std::shared_ptr<Hotkey> newHotkey);
+    /// Remove a hotkey by name
+    bool removeHotkey(const QString &name);
+    /// Return all hotkeys (read-only snapshot)
+    std::vector<std::shared_ptr<Hotkey>> getAllHotkeys() const;
     /**
      * @brief returns a QKeySequence that perfoms the actions requested.
      * Accepted if and only if the category matches, the action matches and arguments match.

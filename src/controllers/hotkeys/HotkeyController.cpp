@@ -181,6 +181,49 @@ std::shared_ptr<Hotkey> HotkeyController::getHotkeyByName(QString name)
     return nullptr;
 }
 
+std::shared_ptr<Hotkey> HotkeyController::getHotkeyByAction(
+    HotkeyCategory category, const QString &action)
+{
+    for (const auto &hotkey : this->hotkeys_)
+    {
+        if (hotkey->category() == category && hotkey->action() == action)
+        {
+            return hotkey;
+        }
+    }
+    return nullptr;
+}
+
+int HotkeyController::addHotkey(std::shared_ptr<Hotkey> newHotkey)
+{
+    return this->hotkeys_.append(newHotkey);
+}
+
+bool HotkeyController::removeHotkey(const QString &name)
+{
+    int i = 0;
+    for (const auto &hotkey : this->hotkeys_)
+    {
+        if (hotkey->name() == name)
+        {
+            this->hotkeys_.removeAt(i);
+            return true;
+        }
+        i++;
+    }
+    return false;
+}
+
+std::vector<std::shared_ptr<Hotkey>> HotkeyController::getAllHotkeys() const
+{
+    std::vector<std::shared_ptr<Hotkey>> result;
+    for (const auto &hk : this->hotkeys_)
+    {
+        result.push_back(hk);
+    }
+    return result;
+}
+
 int HotkeyController::replaceHotkey(QString oldName,
                                     std::shared_ptr<Hotkey> newHotkey)
 {

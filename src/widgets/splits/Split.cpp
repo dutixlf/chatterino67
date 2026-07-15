@@ -610,6 +610,90 @@ void Split::addShortcuts()
 
              return "";
          }},
+        {"modDeleteHoveredMessage",
+         [this](const std::vector<QString> &) -> QString {
+             auto msg = this->getChannelView().getHoveredMessage();
+             if (!msg || msg->id.isEmpty())
+             {
+                 return "No message hovered or message has no ID.";
+             }
+             auto chan = this->getChannel();
+             if (!chan || !chan->hasModRights())
+             {
+                 return "No mod rights in this channel.";
+             }
+             if (auto *tc = dynamic_cast<TwitchChannel *>(chan.get()))
+             {
+                 tc->deleteMessagesAs(
+                     msg->id,
+                     getApp()->getAccounts()->twitch.getCurrent().get());
+             }
+             else if (auto *kc = dynamic_cast<KickChannel *>(chan.get()))
+             {
+                 kc->deleteMessage(msg->id);
+             }
+             return "";
+         }},
+        {"modTimeoutHoveredUser",
+         [this](const std::vector<QString> &arguments) -> QString {
+             auto msg = this->getChannelView().getHoveredMessage();
+             if (!msg || msg->loginName.isEmpty())
+             {
+                 return "No message hovered or message has no sender.";
+             }
+             auto chan = this->getChannel();
+             if (!chan || !chan->hasModRights())
+             {
+                 return "No mod rights in this channel.";
+             }
+             int duration = 600;
+             if (!arguments.empty())
+             {
+                 bool ok = false;
+                 int val = arguments[0].toInt(&ok);
+                 if (ok && val > 0)
+                 {
+                     duration = val;
+                 }
+             }
+             auto cmd = QString("/timeout %1 %2")
+                            .arg(msg->loginName)
+                            .arg(duration);
+             getApp()->getCommands()->execCommand(cmd, chan, false);
+             return "";
+         }},
+        {"modBanHoveredUser",
+         [this](const std::vector<QString> &) -> QString {
+             auto msg = this->getChannelView().getHoveredMessage();
+             if (!msg || msg->loginName.isEmpty())
+             {
+                 return "No message hovered or message has no sender.";
+             }
+             auto chan = this->getChannel();
+             if (!chan || !chan->hasModRights())
+             {
+                 return "No mod rights in this channel.";
+             }
+             auto cmd = QString("/ban %1").arg(msg->loginName);
+             getApp()->getCommands()->execCommand(cmd, chan, false);
+             return "";
+         }},
+        {"modUnbanHoveredUser",
+         [this](const std::vector<QString> &) -> QString {
+             auto msg = this->getChannelView().getHoveredMessage();
+             if (!msg || msg->loginName.isEmpty())
+             {
+                 return "No message hovered or message has no sender.";
+             }
+             auto chan = this->getChannel();
+             if (!chan || !chan->hasModRights())
+             {
+                 return "No mod rights in this channel.";
+             }
+             auto cmd = QString("/unban %1").arg(msg->loginName);
+             getApp()->getCommands()->execCommand(cmd, chan, false);
+             return "";
+         }},
         {"openViewerList",
          [this](const std::vector<QString> &) -> QString {
              this->openChatterList();

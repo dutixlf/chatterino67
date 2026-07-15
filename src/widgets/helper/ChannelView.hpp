@@ -253,6 +253,10 @@ public:
     /// This signal fires when a message passed filters and was added to the channel view
     Q_SIGNAL void messageAddedToChannel(MessagePtr &message);
 
+    /// Returns the MessagePtr of the message currently under the mouse cursor.
+    /// Used by moderation quick-action keybinds.
+    MessagePtr getHoveredMessage() const;
+
 protected:
     void themeChangedEvent() override;
     void scaleChangedEvent(float scale) override;
@@ -443,6 +447,9 @@ private:
     MessageLayout *highlightedMessage_ = nullptr;
     QVariantAnimation highlightAnimation_;
     void setupHighlightAnimationColors();
+
+    // Message under mouse cursor for moderation outline & quick-action keybinds
+    MessageLayout *hoveredMessage_ = nullptr;
 
     struct {
         QCursor neutral;

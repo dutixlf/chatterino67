@@ -751,6 +751,9 @@ set(SOURCE_FILES
         widgets/dialogs/ColorPickerDialog.hpp
         widgets/dialogs/EditHotkeyDialog.cpp
         widgets/dialogs/EditHotkeyDialog.hpp
+
+        widgets/dialogs/AddModKeybindDialog.cpp
+        widgets/dialogs/AddModKeybindDialog.hpp
         widgets/dialogs/EditUserNotesDialog.cpp
         widgets/dialogs/EditUserNotesDialog.hpp
         widgets/dialogs/EmotePopup.cpp

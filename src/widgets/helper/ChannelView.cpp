@@ -1850,6 +1850,28 @@ void ChannelView::drawMessages(QPainter &painter, const QRect &area)
                     this->highlightedMessage_ = nullptr;
                 }
             }
+
+            // Moderation outline on hovered message
+            if (this->hoveredMessage_ == layout &&
+                getSettings()->moderationOutline)
+            {
+                auto outlineColor =
+                    QColor(getSettings()->moderationOutlineColor);
+                painter.setPen(QPen(outlineColor, 2));
+                painter.setBrush(Qt::NoBrush);
+                painter.drawRect(QRectF{
+                    0, ctx.y, layout->getWidth(), layout->getHeight()});
+            }
+
+            // Moderation background fill on hovered message
+            if (this->hoveredMessage_ == layout &&
+                getSettings()->moderationBackground)
+            {
+                painter.fillRect(
+                    QRectF{0, ctx.y, layout->getWidth(),
+                           layout->getHeight()},
+                    QColor(getSettings()->moderationBackgroundColor));
+            }
         }
 
         ctx.y += layout->getHeight();
@@ -2056,9 +2078,24 @@ void ChannelView::enterEvent(QEnterEvent * /*event*/)
     }
 }
 
+MessagePtr ChannelView::getHoveredMessage() const
+{
+    if (this->hoveredMessage_)
+    {
+        return this->hoveredMessage_->getMessagePtr();
+    }
+    return nullptr;
+}
+
 void ChannelView::leaveEvent(QEvent * /*event*/)
 {
     this->tooltipWidget_->hide();
+
+    if (this->hoveredMessage_)
+    {
+        this->hoveredMessage_ = nullptr;
+        this->update();
+    }
 
     this->unpause(PauseReason::Mouse);
 }
@@ -2149,7 +2186,19 @@ void ChannelView::mouseMoveEvent(QMouseEvent *event)
     {
         this->setCursor(Qt::ArrowCursor);
         this->tooltipWidget_->hide();
+        if (this->hoveredMessage_)
+        {
+            this->hoveredMessage_ = nullptr;
+            this->update();
+        }
         return;
+    }
+
+    // Track hovered message for moderation outline / quick-action keybinds
+    if (this->hoveredMessage_ != layout.get())
+    {
+        this->hoveredMessage_ = layout.get();
+        this->update();
     }
 
     if (this->isScrolling_)

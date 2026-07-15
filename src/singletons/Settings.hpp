@@ -443,6 +443,15 @@ public:
     // Show a banner at the top of the chat for the current pinned message
     // (moderator pins and Hype Chat, via the pinned-chat PubSub topic).
     BoolSetting showPinnedBanner = {"/appearance/showPinnedBanner", true};
+
+    // Moderation quick-action outline on hovered messages
+    BoolSetting moderationOutline = {"/moderation/outline/enabled", false};
+    QStringSetting moderationOutlineColor = {
+        "/moderation/outline/color", "#ffffff25"};
+    BoolSetting moderationBackground = {
+        "/moderation/background/enabled", false};
+    QStringSetting moderationBackgroundColor = {
+        "/moderation/background/color", "#ffffff25"};
     QStringSetting firstMessageColor = {"/highlighting/firstMessage/color",
                                         ""};
     BoolSetting alwaysIncludeBroadcasterInUserCompletions = {

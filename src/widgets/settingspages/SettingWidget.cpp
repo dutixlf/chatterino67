@@ -638,7 +638,13 @@ void SettingWidget::addToLayout(QLayout *layout)
         return;
     }
 
-    assert(false && "unimplemented");
+    // ponytail: label + action widget side by side
+    auto *hbox = new QHBoxLayout;
+    hbox->setContentsMargins(0, 0, 0, 0);
+    hbox->addWidget(this->label);
+    hbox->addWidget(this->actionWidget);
+    hbox->addStretch();
+    layout->addItem(hbox);
 }
 
 void SettingWidget::registerWidget(GeneralPageView &view)
