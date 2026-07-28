@@ -4,13 +4,16 @@
 
 #pragma once
 
+#include <QColor>
+#include <QHash>
+#include <QString>
+
 #include <cstdint>
 #include <functional>
+#include <mutex>
 #include <optional>
 
-class QString;
 class QJsonObject;
-class QColor;
 
 namespace chatterino {
 
