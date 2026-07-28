@@ -176,7 +176,9 @@ jobs:
       matrix:
         include:
           # Windows
-          - os: windows-latest
+          # pinned to windows-2022: windows-latest (2025) MSVC hangs
+          # compiling SplitInput.cpp — confirmed on old commit too
+          - os: windows-2022
             qt-version: 6.9.3
             force-lto: true
             skip-artifact: false
