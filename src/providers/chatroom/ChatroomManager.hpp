@@ -57,6 +57,7 @@ public:
     /// Unsubscribe from a room.  Only drops the actual subscription when
     /// the refcount reaches zero.
     void unsubscribeRoom(const QString &roomId);
+    bool isSubscribed(const QString &roomId) const;
 
     // ── sending ──────────────────────────────────────────────────────
 

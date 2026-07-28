@@ -140,6 +140,11 @@ void ChatroomManager::unsubscribeRoom(const QString &roomId)
     }
 }
 
+bool ChatroomManager::isSubscribed(const QString &roomId) const
+{
+    return this->roomRefs_.contains(roomId);
+}
+
 SendResult ChatroomManager::sendMessage(const QString &roomId,
                                         const QString &text,
                                         const QString &parentId)

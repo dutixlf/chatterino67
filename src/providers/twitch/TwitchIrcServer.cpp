@@ -227,8 +227,58 @@ void TwitchIrcServer::initialize()
         getApp()->getAccounts()->twitch.currentUserChanged, [this]() {
             postToThread([this] {
                 this->connect();
+                // (Re)start shadow chat on login/logout if enabled
+                if (getSettings()->shadowChatEnabled)
+                {
+                    if (auto *cm = getApp()->getChatroomManager())
+                    {
+                        cm->start();
+                    }
+                }
             });
         });
+
+    // Enabling shadow chat mid-session: start manager + subscribe open channels.
+    // Disabling: unsubscribe everything + stop manager.
+    getSettings()->shadowChatEnabled.connect(
+        [this](const auto &enabled) {
+            auto *cm = getApp()->getChatroomManager();
+            if (!cm)
+            {
+                return;
+            }
+            if (!enabled)
+            {
+                this->forEachChannel([cm](ChannelPtr chan) {
+                    auto *tc = dynamic_cast<TwitchChannel *>(chan.get());
+                    if (!tc)
+                    {
+                        return;
+                    }
+                    auto rId = tc->roomId();
+                    if (!rId.isEmpty() && cm->isSubscribed(rId))
+                    {
+                        cm->unsubscribeRoom(rId);
+                    }
+                });
+                cm->stop();
+                return;
+            }
+            cm->start();
+            this->forEachChannel([cm](ChannelPtr chan) {
+                auto *tc = dynamic_cast<TwitchChannel *>(chan.get());
+                if (!tc)
+                {
+                    return;
+                }
+                auto rId = tc->roomId();
+                if (!rId.isEmpty() && !cm->isSubscribed(rId))
+                {
+                    cm->subscribeRoom(rId);
+                }
+            });
+        },
+        this->signalHolder);
 
     // Shadow-chat display pipeline: when a gmsg arrives, build a Message
     // and insert it into the targeted channel.
