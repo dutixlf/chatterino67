@@ -13,6 +13,7 @@
 #include <IrcMessage>
 #include <QRegularExpression>
 #include <QString>
+#include <QDateTime>
 #include <QTime>
 #include <QUrl>
 #include <QVariant>
@@ -272,8 +273,14 @@ public:
     /// @param actor The user who cleared the chat (empty if unknown)
     /// @param count How many times this message has been received already
     static MessagePtrMut makeClearChatMessage(const QDateTime &now,
-                                              const QString &actor,
-                                              uint32_t count = 1);
+                                               const QString &actor,
+                                               uint32_t count = 1);
+
+    static MessagePtrMut makeShadowChatMessage(
+        TwitchChannel *channel, const QString &id,
+        const QString &displayName, const QString &loginName,
+        const QString &userID, const QString &text, const QDateTime &ts,
+        bool mod, bool vip = false, const QString &parentId = {});
 
     static MessagePtrMut makePinSuccessMessage(QString text, const QString &id);
 

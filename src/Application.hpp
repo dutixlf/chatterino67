@@ -70,6 +70,10 @@ class SpellChecker;
 
 class KickChatServer;
 
+namespace chatroom {
+class ChatroomManager;
+}  // namespace chatroom
+
 class IApplication
 {
 public:
@@ -129,6 +133,7 @@ public:
     virtual eventsub::IController *getEventSub() = 0;
     virtual SpellChecker *getSpellChecker() = 0;
     virtual KickChatServer *getKickChatServer() = 0;
+    virtual chatroom::ChatroomManager *getChatroomManager() = 0;
 };
 
 class Application : public IApplication
@@ -202,6 +207,7 @@ private:
     std::unique_ptr<pronouns::Pronouns> pronouns;
     std::unique_ptr<SpellChecker> spellChecker;
     std::unique_ptr<KickChatServer> kickChatServer;
+    std::unique_ptr<chatroom::ChatroomManager> chatroomManager;
 #ifdef CHATTERINO_HAVE_PLUGINS
     std::unique_ptr<PluginController> plugins;
 #endif
@@ -261,6 +267,7 @@ public:
     ITwitchUsers *getTwitchUsers() override;
     SpellChecker *getSpellChecker() override;
     KickChatServer *getKickChatServer() override;
+    chatroom::ChatroomManager *getChatroomManager() override;
 
 private:
     void initNm(const Paths &paths);

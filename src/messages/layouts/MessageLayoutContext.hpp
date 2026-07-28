@@ -59,6 +59,7 @@ struct MessagePreferences {
     bool enableAutomodHighlight{};
     bool enableAnnouncementHighlight{};
     bool enableColoredAnnouncementHighlight{};
+    bool enableShadowChatHighlight{};
 
     bool alternateMessages{};
     bool separateMessages{};

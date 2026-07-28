@@ -992,6 +992,32 @@ void Helix::updateUserChatColor(
         .execute();
 };
 
+void Helix::getUserChatColor(QString userID,
+                             ResultCallback<QString> successCallback,
+                             HelixFailureCallback failureCallback)
+{
+    QUrlQuery urlQuery;
+    urlQuery.addQueryItem("user_id", userID);
+
+    this->makeGet("chat/color", urlQuery)
+        .onSuccess([successCallback](const auto &result) {
+            auto json = result.parseJson();
+            auto data = json.value("data").toArray();
+            if (data.isEmpty())
+            {
+                successCallback(QString{});
+                return;
+            }
+            successCallback(data.at(0).toObject().value("color").toString());
+        })
+        .onError([failureCallback](const auto &result) {
+            qCDebug(chatterinoTwitch)
+                << "Failed to fetch user chat color:" << result.formatError();
+            failureCallback();
+        })
+        .execute();
+}
+
 void Helix::deleteChatMessages(
     QString broadcasterID, QString moderatorID, QString messageID,
     ResultCallback<> successCallback,

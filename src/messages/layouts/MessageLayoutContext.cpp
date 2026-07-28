@@ -91,6 +91,13 @@ void MessagePreferences::connectSettings(Settings *settings,
             this->enableAnnouncementHighlight = newValue;
         },
         holder);
+
+    settings->shadowChatHighlightEnabled.connect(
+        [this](const auto &newValue) {
+            this->enableShadowChatHighlight = newValue;
+        },
+        holder);
+
     settings->enableColoredAnnouncementHighlight.connect(
         [this](const auto &newValue) {
             this->enableColoredAnnouncementHighlight = newValue;

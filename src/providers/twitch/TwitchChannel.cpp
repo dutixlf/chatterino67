@@ -6,6 +6,7 @@
 
 #include "Application.hpp"
 #include "common/Common.hpp"
+#include "providers/chatroom/ChatroomManager.hpp"
 #include "common/network/NetworkRequest.hpp"
 #include "common/network/NetworkResult.hpp"  // IWYU pragma: keep
 #include "common/QLogging.hpp"
@@ -124,6 +125,7 @@ TwitchChannel::TwitchChannel(const QString &name)
     , bttvEmotes_(std::make_shared<EmoteMap>())
     , ffzEmotes_(std::make_shared<EmoteMap>())
     , seventvEmotes_(std::make_shared<EmoteMap>())
+    , userBadgeCache_(userBadgeCacheMaxSize)
 {
     qCDebug(chatterinoTwitch) << "[TwitchChannel" << name << "] Opened";
 
@@ -235,6 +237,16 @@ TwitchChannel::~TwitchChannel()
 
     getApp()->getTwitch()->dropSeventvChannel(this->seventvUserID_,
                                               this->seventvEmoteSetID_);
+
+    // Unsubscribe from shadow chat room
+    if (auto *cm = getApp()->getChatroomManager())
+    {
+        QString rId = *this->roomID_.accessConst();
+        if (!rId.isEmpty())
+        {
+            cm->unsubscribeRoom(rId);
+        }
+    }
 
     if (getApp()->getBttvLiveUpdates())
     {
@@ -814,6 +826,22 @@ void TwitchChannel::roomIdChanged()
     {
         return;
     }
+
+    // Subscribe to shadow chat room if enabled
+    if (getSettings()->shadowChatEnabled)
+    {
+        if (auto *cm = getApp()->getChatroomManager())
+        {
+            QString rId = *this->roomID_.accessConst();
+            if (!rId.isEmpty())
+            {
+                cm->subscribeRoom(rId);
+                qCDebug(chatterinoChatroom)
+                    << "TwitchChannel: subscribed to shadow room" << rId;
+            }
+        }
+    }
+
     this->refreshPubSub();
     this->refreshBadges();
     this->refreshCheerEmotes();
@@ -903,6 +931,36 @@ void TwitchChannel::sendMessage(const QString &message)
         return;
     }
 
+    // ── shadow chat routing (§8.3) ──────────────────────────────────
+    if (auto *chatroom = getApp()->getChatroomManager();
+        chatroom && chatroom->shouldSendToShadow())
+    {
+        auto roomId = this->roomId();
+        if (roomId.isEmpty())
+        {
+            qCWarning(chatterinoChatroom)
+                << "TwitchChannel: no roomId yet, cannot shadow-send";
+            this->addSystemMessage(
+                QStringLiteral("Shadow chat: room not ready yet"));
+            return;
+        }
+
+        auto result = chatroom->sendMessage(roomId, parsedMessage);
+        if (result == chatroom::SendResult::ShadowSent)
+        {
+            qCDebug(chatterinoChatroom)
+                << "TwitchChannel: sent to shadow chat";
+            return;
+        }
+
+        // ShadowFailed — NEVER forward to Twitch (§8.3)
+        qCWarning(chatterinoChatroom)
+            << "TwitchChannel: shadow send failed";
+        this->addSystemMessage(
+            QStringLiteral("Shadow chat: message not sent (check connection)"));
+        return;
+    }
+
     bool messageSent = false;
     this->sendMessageSignal.invoke(parsedMessage, messageSent);
     this->updateBttvActivity();
@@ -945,6 +1003,29 @@ void TwitchChannel::sendReply(const QString &message, const QString &replyId)
         return;
     }
 
+    // If replying to a shadow chat message, route through shadow websocket
+    {
+        auto target = this->findMessageByID(replyId);
+        if (target && target->flags.has(MessageFlag::ShadowChat) &&
+            getSettings()->shadowChatEnabled)
+        {
+            if (auto *chatroom = getApp()->getChatroomManager())
+            {
+                auto result = chatroom->sendMessage(
+                    this->roomId(), parsedMessage, replyId);
+                if (result == chatroom::SendResult::ShadowSent)
+                {
+                    this->lastSentMessage_ = parsedMessage;
+                    return;
+                }
+            }
+            // Can't reply to a shadow message via Twitch — drop with notice
+            this->addSystemMessage(QStringLiteral(
+                "Shadow chat: reply not sent (check connection)"));
+            return;
+        }
+    }
+
     bool messageSent = false;
     this->sendReplySignal.invoke(parsedMessage, replyId, messageSent);
 
@@ -985,8 +1066,17 @@ void TwitchChannel::setVIP(bool value)
     if (this->vip_ != value)
     {
         this->vip_ = value;
-
         this->userStateChanged.invoke();
+
+        // Announce VIP status to shadow chat server
+        auto rid = this->roomId();
+        if (!rid.isEmpty())
+        {
+            if (auto *cm = getApp()->getChatroomManager())
+            {
+                cm->sendSelfState(rid, value);
+            }
+        }
     }
 }
 
@@ -2353,6 +2443,25 @@ void TwitchChannel::unpinMessageAs(const QString &messageID,
             }();
             chan->addSystemMessage(errorMessage);
         });
+}
+
+void TwitchChannel::cacheUserBadges(const QString &userID,
+                                    const QString &badges,
+                                    const QString &badgeInfo)
+{
+    auto cache = this->userBadgeCache_.access();
+    cache->put(userID, {badges, badgeInfo});
+}
+
+std::optional<std::pair<QString, QString>> TwitchChannel::lookupUserBadges(
+    const QString &userID) const
+{
+    auto cache = this->userBadgeCache_.access();
+    if (cache->exists(userID))
+    {
+        return cache->get(userID);
+    }
+    return std::nullopt;
 }
 
 std::optional<EmotePtr> TwitchChannel::twitchBadge(const QString &set,

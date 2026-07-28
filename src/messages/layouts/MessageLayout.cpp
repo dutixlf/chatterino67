@@ -464,6 +464,14 @@ void MessageLayout::updateBuffer(QPixmap *buffer,
             backgroundColor = QColor("#404040");
         }
     }
+    else if (this->message_->flags.has(MessageFlag::ShadowChat) &&
+             ctx.preferences.enableShadowChatHighlight)
+    {
+        auto scColor = getSettings()->shadowChatColor.getValue();
+        backgroundColor = blendColors(
+            backgroundColor,
+            scColor.isEmpty() ? QColor("#1a1a3e") : QColor(scColor));
+    }
     else if (this->message_->flags.has(MessageFlag::Debug))
     {
         backgroundColor = QColor("#4A273D");

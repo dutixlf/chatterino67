@@ -430,6 +430,19 @@ void IrcMessageHandler::parsePrivMessageInto(
         }
     }
 
+    // Cache the sender's Twitch badges for shadow-chat use
+    {
+        auto userIdTag = message->tag("user-id");
+        auto badgesTag = message->tag("badges");
+        auto badgeInfoTag = message->tag("badge-info");
+        if (userIdTag.isValid())
+        {
+            channel->cacheUserBadges(userIdTag.toString(),
+                                     badgesTag.isValid() ? badgesTag.toString() : QString(),
+                                     badgeInfoTag.isValid() ? badgeInfoTag.toString() : QString());
+        }
+    }
+
     IrcMessageHandler::addMessage(message, sink, channel,
                                   unescapeZeroWidthJoiner(message->content()),
                                   *getApp()->getTwitch(),

@@ -35,6 +35,7 @@
 #include "providers/seventv/SeventvBadges.hpp"
 #include "providers/seventv/SeventvEmotes.hpp"
 #include "providers/seventv/SeventvPersonalEmotes.hpp"
+#include "providers/seventv/SeventvAPI.hpp"
 #include "providers/twitch/api/Helix.hpp"
 #include "providers/twitch/ChannelPointReward.hpp"
 #include "providers/twitch/TwitchAccount.hpp"
@@ -109,6 +110,52 @@ const QSet<QString> SUB_MESSAGE_TYPES{
     "subgift",  //
     "resub",    // resub messages
 };
+
+/// Async user-color resolution for users without a cached/stored color:
+/// 1. Twitch Helix /chat/color — the user's actual Twitch chat color.
+/// 2. On failure (e.g. user suspended/banned on Twitch) or empty color,
+///    fall back to 7TV profile color via SeventvAPI::fetchUserColor.
+/// Results land in UserData DB, picked up by parseUsernameColor next time.
+QSet<QString> pendingColorFetch;
+QSet<QString> noColorFetchResult;
+
+void fetchTwitchUserColor(const QString &userID)
+{
+    if (userID.isEmpty() || pendingColorFetch.contains(userID) ||
+        noColorFetchResult.contains(userID))
+    {
+        return;
+    }
+    pendingColorFetch.insert(userID);
+
+    qCDebug(chatterinoMessage) << "Fetching chat color for user" << userID;
+
+    getHelix()->getUserChatColor(
+        userID,
+        [userID](const QString &color) {
+            pendingColorFetch.remove(userID);
+            if (!color.isEmpty())
+            {
+                qCDebug(chatterinoMessage)
+                    << "Helix color for" << userID << "=" << color;
+                getApp()->getUserData()->setUserColor(userID, color);
+                return;
+            }
+            // No custom Twitch color — try 7TV profile color
+            qCDebug(chatterinoMessage)
+                << "No Helix color for" << userID << ", trying 7TV";
+            noColorFetchResult.insert(userID);
+            getApp()->getSeventvAPI()->fetchUserColor(userID);
+        },
+        [userID] {
+            pendingColorFetch.remove(userID);
+            // Helix failed (e.g. banned/suspended user) — try 7TV once
+            qCDebug(chatterinoMessage)
+                << "Helix color fetch failed for" << userID << ", trying 7TV";
+            noColorFetchResult.insert(userID);
+            getApp()->getSeventvAPI()->fetchUserColor(userID);
+        });
+}
 
 QString formatUpdatedEmoteList(const QString &platform,
                                const std::vector<QString> &emoteNames,
@@ -1477,6 +1524,130 @@ MessagePtr MessageBuilder::makeHostingSystemMessage(const QString &channelName,
     return builder.release();
 }
 
+MessagePtrMut MessageBuilder::makeShadowChatMessage(
+    TwitchChannel *channel, const QString &id,
+    const QString &displayName, const QString &loginName,
+    const QString &userID, const QString &text, const QDateTime &ts,
+    bool mod, bool vip, const QString &parentId)
+{
+    MessageBuilder builder;
+    builder.message().parseTime = ts.time();
+    builder.message().serverReceivedTime = ts;
+
+    // Build IRC-style tags so standard builder methods work
+    QVariantMap tags;
+    tags[u"user-id"_s] = userID;
+    tags[u"display-name"_s] = displayName;
+    tags[u"login"_s] = loginName;  // needed for appendUsername comparison
+    {
+        QStringList parts;
+        if (channel)
+        {
+            auto cached = channel->lookupUserBadges(userID);
+            if (cached)
+            {
+                tags[u"badges"_s] = cached->first;
+                if (!cached->second.isEmpty())
+                    tags[u"badge-info"_s] = cached->second;
+            }
+        }
+        if (!tags.contains(u"badges"_s))
+        {
+            if (mod)
+                parts << u"moderator/1"_s;
+            if (vip)
+                parts << u"vip/1"_s;
+            if (!parts.isEmpty())
+                tags[u"badges"_s] = parts.join(',');
+        }
+    }
+    if (mod)
+        tags[u"user-type"_s] = u"mod"_s;
+
+    builder.message().id = id;
+    builder.message().loginName = loginName;
+    builder.message().displayName = displayName;
+    builder.message().userID = userID;
+    builder.message().messageText = text;
+    builder.message().searchText = text;
+
+    builder.parseUsernameColor(tags, userID);
+builder->userID = userID;
+
+    // Reply thread — standard rendering (BEFORE timestamp, like makeIrcMessage)
+    std::shared_ptr<MessageThread> replyThread;
+    MessagePtr replyParent;
+    if (!parentId.isEmpty() && channel)
+    {
+        auto parent = channel->findMessageByID(parentId);
+        if (parent)
+        {
+            replyThread = channel->getOrCreateThread(parent);
+            replyParent = parent;
+            builder.parseThread(text, tags, channel, replyThread, replyParent);
+        }
+    }
+
+    // Timestamp
+    builder.emplace<TimestampElement>(ts.time());
+
+    // Badges — same order as makeIrcMessage
+    builder.appendChatterinoBadges(userID);
+    builder.appendChatterinoHomiesBadges(userID);
+    builder.appendDankChatBadges(userID);
+    builder.appendChatsenBadges(userID);
+    builder.appendChattyBadges(loginName);
+    builder.appendPurpleTVBadges(userID);
+    builder.appendRTEBadges(userID);
+    if (channel)
+    {
+        builder.appendFfzBadges(channel, userID);
+    }
+    builder.appendBttvBadges(userID);
+    builder.appendSeventvBadges(userID);
+    if (channel)
+    {
+        builder.appendTwitchBadges(tags, channel);
+    }
+
+    // Username — standard path (handles display-name tag, localized names)
+    builder.appendUsername(tags, {});
+
+    // Text — standard path (7TV/BTTV/FFZ emotes, links, @mentions, cheermotes)
+    TextState textState{.twitchChannel = channel, .userID = userID};
+    auto twitchEmotes = parseTwitchEmotes(tags, text, 0);
+    std::ranges::sort(twitchEmotes, [](const auto &a, const auto &b) {
+        return a.start < b.start;
+    });
+    auto uniqueEmotes = std::ranges::unique(
+        twitchEmotes, [](const auto &first, const auto &second) {
+            return first.start == second.start;
+        });
+    twitchEmotes.erase(uniqueEmotes.begin(), uniqueEmotes.end());
+    builder.addWords(text.split(' '), twitchEmotes, textState);
+
+    builder.message().flags.set(MessageFlag::ShadowChat);
+
+    // Highlight processing — standard path
+    {
+        auto alert = builder.parseHighlights(tags, text, {});
+        if (channel && (alert.playSound || alert.windowAlert))
+        {
+            MessageBuilder::triggerHighlights(channel, alert);
+        }
+    }
+
+    // Add reply references to message after building
+    if (replyThread)
+    {
+        builder.message().replyThread = replyThread;
+        builder.message().replyParent = replyParent;
+        builder.message().flags.set(MessageFlag::ReplyMessage);
+    }
+
+    return builder.release();
+}
+
 MessagePtr MessageBuilder::makeDeletionMessageFromIRC(
     const MessagePtr &originalMessage)
 {
@@ -2251,11 +2422,21 @@ void MessageBuilder::parseUsernameColor(const QVariantMap &tags,
         }
     }
 
-    if (getSettings()->colorizeNicknames && tags.contains("user-id"))
+    // ponytail: try 7TV cached color for users without IRC color tag
+    if (auto color = getApp()->getSeventvAPI()->getCachedUserColor(userID); color)
     {
-        this->usernameColor_ = getRandomColor(tags.value("user-id").toString());
+        this->usernameColor_ = *color;
         this->message().usernameColor = this->usernameColor_;
+        return;
     }
+
+    // Trigger async fetch for next time: Helix /chat/color (real Twitch
+    // color) first, 7TV style.color as fallback for banned/suspended users.
+    fetchTwitchUserColor(userID);
+
+    // Fallback: deterministic color from userID (always works for shadow chat)
+    this->usernameColor_ = getRandomColor(userID);
+    this->message().usernameColor = this->usernameColor_;
 }
 
 void MessageBuilder::parseUsername(const Communi::IrcMessage *ircMessage,

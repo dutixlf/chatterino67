@@ -84,6 +84,8 @@ enum class MessageFlag : std::int64_t {
     Spam = (1LL << 46),
     /// The message was detected as a copypasta (multiple users sending identical text)
     Pasta = (1LL << 47),
+    /// The message is a shadow chat (third-party chatroom) message
+    ShadowChat = (1LL << 48),
 };
 using MessageFlags = FlagsEnum<MessageFlag>;
 

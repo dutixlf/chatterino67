@@ -46,6 +46,7 @@
 #include "providers/bttv/BttvLiveUpdates.hpp"
 #include "providers/chatterino/ChatterinoBadges.hpp"
 #include "providers/ffz/FfzBadges.hpp"
+#include "providers/chatroom/ChatroomManager.hpp"
 #include "providers/homies/HomiesBadges.hpp"
 #include "providers/seventv/SeventvBadges.hpp"
 #include "providers/seventv/SeventvEventAPI.hpp"
@@ -206,6 +207,7 @@ Application::Application(Settings &_settings, const Paths &paths,
     , pronouns(new pronouns::Pronouns)
     , spellChecker(new SpellChecker)
     , kickChatServer(new KickChatServer)
+    , chatroomManager(new chatroom::ChatroomManager)
 #ifdef CHATTERINO_HAVE_PLUGINS
     , plugins(new PluginController(paths))
 #endif
@@ -339,6 +341,9 @@ int Application::run()
     assert(this->initialized);
 
     this->twitch->connect();
+
+    // Start shadow chat after Twitch is connected (account is ready)
+    this->chatroomManager->start();
 
     if (!this->args_.isFramelessEmbed)
     {
@@ -680,6 +685,14 @@ KickChatServer *Application::getKickChatServer()
     return this->kickChatServer.get();
 }
 
+chatroom::ChatroomManager *Application::getChatroomManager()
+{
+    assertInGuiThread();
+    assert(this->chatroomManager);
+
+    return this->chatroomManager.get();
+}
+
 void Application::aboutToQuit()
 {
     ABOUT_TO_QUIT.store(true);
@@ -738,6 +751,7 @@ void Application::stop()
     this->fonts.reset();
     this->themes.reset();
     this->spellChecker.reset();
+    this->chatroomManager.reset();
 
     STOPPED.store(true);
 }

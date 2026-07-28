@@ -857,6 +857,13 @@ public:
         FailureCallback<HelixUpdateUserChatColorError, QString>
             failureCallback) = 0;
 
+    // https://dev.twitch.tv/docs/api/reference#get-user-chat-color
+    /// successCallback receives the hex color (e.g. "#9145FF") or an empty
+    /// string if the user has no custom color.
+    virtual void getUserChatColor(
+        QString userID, ResultCallback<QString> successCallback,
+        HelixFailureCallback failureCallback) = 0;
+
     // https://dev.twitch.tv/docs/api/reference#delete-chat-messages
     virtual void deleteChatMessages(
         QString broadcasterID, QString moderatorID, QString messageID,
@@ -1290,6 +1297,11 @@ public:
         QString userID, QString color, ResultCallback<> successCallback,
         FailureCallback<HelixUpdateUserChatColorError, QString> failureCallback)
         final;
+
+    // https://dev.twitch.tv/docs/api/reference#get-user-chat-color
+    void getUserChatColor(QString userID,
+                          ResultCallback<QString> successCallback,
+                          HelixFailureCallback failureCallback) final;
 
     // https://dev.twitch.tv/docs/api/reference#delete-chat-messages
     void deleteChatMessages(

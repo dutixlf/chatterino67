@@ -125,6 +125,8 @@ set(SOURCE_FILES
         controllers/commands/builtin/twitch/SendReply.hpp
         controllers/commands/builtin/twitch/SendWhisper.cpp
         controllers/commands/builtin/twitch/SendWhisper.hpp
+        controllers/commands/builtin/twitch/ShadowChat.cpp
+        controllers/commands/builtin/twitch/ShadowChat.hpp
         controllers/commands/builtin/twitch/ShieldMode.cpp
         controllers/commands/builtin/twitch/ShieldMode.hpp
         controllers/commands/builtin/twitch/Shoutout.cpp
@@ -388,6 +390,13 @@ set(SOURCE_FILES
         providers/NetworkConfigurationProvider.cpp
         providers/NetworkConfigurationProvider.hpp
 
+        providers/chatroom/ChatroomClient.cpp
+        providers/chatroom/ChatroomClient.hpp
+        providers/chatroom/ChatroomManager.cpp
+        providers/chatroom/ChatroomManager.hpp
+        providers/chatroom/ChatroomTypes.hpp
+        providers/chatroom/TicketClient.cpp
+        providers/chatroom/TicketClient.hpp
         providers/bttv/BttvBadges.cpp
         providers/bttv/BttvBadges.hpp
         providers/bttv/BttvEmotes.cpp

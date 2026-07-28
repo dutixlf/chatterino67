@@ -6,6 +6,7 @@
 
 #include "Application.hpp"
 #include "common/Common.hpp"
+#include "providers/chatroom/ChatroomManager.hpp"
 #include "common/QLogging.hpp"
 #include "controllers/accounts/AccountController.hpp"
 #include "controllers/commands/Command.hpp"
@@ -193,6 +194,17 @@ Split::Split(QWidget *parent)
         });
     this->updateInputPlaceholder();
 
+    // update placeholder on shadow-chat state changes
+    auto *cm = getApp()->getChatroomManager();
+    if (cm)
+    {
+        QObject::connect(cm,
+                         &chatroom::ChatroomManager::connectionStateChanged,
+                         this, [this](bool, bool) {
+                             this->updateInputPlaceholder();
+                         });
+    }
+
     // clear SplitInput selection when selecting in ChannelView
     // this connection can be ignored since the ChannelView is owned by this Split
     std::ignore = this->view_->selectionChanged.connect([this]() {
@@ -254,6 +266,14 @@ Split::Split(QWidget *parent)
         [this] {
             this->refreshInputState(this->input_->getInputText());
         },
+        this->signalHolder_);
+
+    // update placeholder when shadow-chat settings change
+    getSettings()->shadowChatEnabled.connect(
+        [this] { this->updateInputPlaceholder(); },
+        this->signalHolder_);
+    getSettings()->shadowChatSendToShadow.connect(
+        [this] { this->updateInputPlaceholder(); },
         this->signalHolder_);
 
     this->header_->updateIcons();
@@ -986,6 +1006,14 @@ void Split::updateInputPlaceholder()
     }
 
     this->input_->ui_.textEdit->setPlaceholderText(placeholderText);
+
+    // §9 — show shadow chat mode in input field
+    if (auto *cm = getApp()->getChatroomManager();
+        cm && cm->shouldSendToShadow())
+    {
+        this->input_->ui_.textEdit->setPlaceholderText(
+            QStringLiteral("[S] ") + placeholderText);
+    }
 }
 
 void Split::joinChannelInNewTab(const ChannelPtr &channel)

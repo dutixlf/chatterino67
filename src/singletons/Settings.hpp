@@ -444,6 +444,13 @@ public:
     // (moderator pins and Hype Chat, via the pinned-chat PubSub topic).
     BoolSetting showPinnedBanner = {"/appearance/showPinnedBanner", true};
 
+    // Shadow chat (third-party chatroom, 8.7 — one common predicate for
+    // routing + filters + input indicator)
+    BoolSetting shadowChatEnabled = {"/chatroom/enabled", false};
+    BoolSetting shadowChatSendToShadow = {"/chatroom/sendToShadow", false};
+    BoolSetting shadowChatHighlightEnabled = {"/chatroom/highlightEnabled", true};
+    QStringSetting shadowChatColor = {"/chatroom/color", ""};
+
     // Moderation quick-action outline on hovered messages
     BoolSetting moderationOutline = {"/moderation/outline/enabled", false};
     QStringSetting moderationOutlineColor = {

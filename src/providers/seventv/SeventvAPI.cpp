@@ -4,6 +4,9 @@
 
 #include "providers/seventv/SeventvAPI.hpp"
 
+#include "Application.hpp"
+#include "common/QLogging.hpp"
+#include "controllers/userdata/UserDataController.hpp"
 #include "common/Literals.hpp"
 #include "common/network/NetworkRequest.hpp"
 #include "common/network/NetworkResult.hpp"
@@ -122,3 +125,77 @@ void SeventvAPI::updatePresence(const QString &platform,
 
 }  // namespace chatterino
 // NOLINTEND(readability-convert-member-functions-to-static)
+
+namespace chatterino {
+
+std::optional<QColor> SeventvAPI::getCachedUserColor(const QString &twitchID) const
+{
+    std::lock_guard lock(this->colorCacheMutex_);
+    auto it = this->userColorCache_.constFind(twitchID);
+    if (it != this->userColorCache_.constEnd() && it->isValid())
+    {
+        return *it;
+    }
+    return std::nullopt;
+}
+
+void SeventvAPI::fetchUserColor(const QString &twitchID)
+{
+    // Check cache first to avoid duplicate requests
+    {
+        std::lock_guard lock(this->colorCacheMutex_);
+        if (this->userColorCache_.contains(twitchID))
+        {
+            return;
+        }
+        // Mark as pending with invalid color to deduplicate requests
+        this->userColorCache_.insert(twitchID, QColor{});
+    }
+
+    this->getUserByTwitchID(
+        twitchID,
+        [this, twitchID](const QJsonObject &json) {
+            // 7TV v3: color lives at user.style.color as a 0xRRGGBBAA int
+            const auto user = json["user"].toObject();
+            const auto style = user["style"].toObject();
+            const auto colorInt =
+                static_cast<uint32_t>(style["color"].toVariant().toLongLong());
+            if (colorInt != 0)
+            {
+                QColor color(static_cast<int>((colorInt >> 24) & 0xFF),
+                             static_cast<int>((colorInt >> 16) & 0xFF),
+                             static_cast<int>((colorInt >> 8) & 0xFF),
+                             static_cast<int>(colorInt & 0xFF));
+                if (color.isValid())
+                {
+                    {
+                        std::lock_guard lock(this->colorCacheMutex_);
+                        this->userColorCache_.insert(twitchID, color);
+                    }
+                    // Also store in UserData DB for persistence
+                    if (auto *userData = getApp()->getUserData())
+                    {
+                        userData->setUserColor(twitchID, color.name(QColor::HexArgb));
+                    }
+                    qCDebug(chatterinoSeventv)
+                        << "7TV color for" << twitchID << "="
+                        << color.name(QColor::HexArgb);
+                    return;
+                }
+            }
+            // No color in response — drop pending marker so we retry later
+            std::lock_guard lock(this->colorCacheMutex_);
+            this->userColorCache_.remove(twitchID);
+            qCDebug(chatterinoSeventv)
+                << "No 7TV color for" << twitchID;
+        },
+        [this, twitchID](const NetworkResult &) {
+            // Remove pending marker on failure
+            std::lock_guard lock(this->colorCacheMutex_);
+            this->userColorCache_.remove(twitchID);
+            qCDebug(chatterinoSeventv)
+                << "7TV color fetch failed for" << twitchID;
+        });
+}
+
+}  // namespace chatterino

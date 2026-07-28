@@ -12,6 +12,7 @@
 #include "common/QLogging.hpp"
 #include "controllers/accounts/AccountController.hpp"
 #include "messages/Message.hpp"
+#include "providers/chatroom/ChatroomManager.hpp"
 #include "messages/MessageBuilder.hpp"
 #include "providers/bttv/BttvEmotes.hpp"
 #include "providers/bttv/BttvLiveUpdates.hpp"
@@ -228,6 +229,27 @@ void TwitchIrcServer::initialize()
                 this->connect();
             });
         });
+
+    // Shadow-chat display pipeline: when a gmsg arrives, build a Message
+    // and insert it into the targeted channel.
+    QObject::connect(getApp()->getChatroomManager(),
+                     &chatroom::ChatroomManager::displayMessageRequired, this,
+                     [this](const QString &roomId,
+                            const chatterino::chatroom::ShadowMessage &sm) {
+                         if (!getSettings()->shadowChatEnabled)
+                             return;
+                         auto chan = this->getChannelOrEmptyByID(roomId);
+                         if (chan->isEmpty())
+                             return;
+                         auto *tc =
+                             dynamic_cast<TwitchChannel *>(chan.get());
+                         auto msg = MessageBuilder::makeShadowChatMessage(
+                             tc, sm.id, sm.displayName, sm.login, sm.userId,
+                             sm.text,
+                             QDateTime::fromMSecsSinceEpoch(sm.ts), sm.mod,
+                             sm.vip, sm.parentId);
+                         chan->addMessage(msg, MessageContext::Original);
+                     });
 
     this->signalHolder.managedConnect(
         getApp()->getTwitchPubSub()->pointReward.redeemed, [this](auto &data) {

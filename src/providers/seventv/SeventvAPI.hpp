@@ -6,9 +6,11 @@
 
 #include <cstdint>
 #include <functional>
+#include <optional>
 
 class QString;
 class QJsonObject;
+class QColor;
 
 namespace chatterino {
 
@@ -50,7 +52,16 @@ public:
 
     void updatePresence(const QString &platform, const QString &platformID,
                         const QString &seventvUserID,
-                        SuccessCallback<> &&onSuccess, ErrorCallback &&onError);
+                        SuccessCallback<> &&onSuccess,
+                        ErrorCallback &&onError);
+
+    // Color cache from 7TV REST API
+    std::optional<QColor> getCachedUserColor(const QString &twitchID) const;
+    void fetchUserColor(const QString &twitchID);
+
+private:
+    mutable std::mutex colorCacheMutex_;
+    QHash<QString, QColor> userColorCache_;
 };
 
 }  // namespace chatterino

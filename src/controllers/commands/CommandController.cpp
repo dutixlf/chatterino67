@@ -29,6 +29,7 @@
 #include "controllers/commands/builtin/twitch/RemoveVIP.hpp"
 #include "controllers/commands/builtin/twitch/SendReply.hpp"
 #include "controllers/commands/builtin/twitch/SendWhisper.hpp"
+#include "controllers/commands/builtin/twitch/ShadowChat.hpp"
 #include "controllers/commands/builtin/twitch/ShieldMode.hpp"
 #include "controllers/commands/builtin/twitch/Shoutout.hpp"
 #include "controllers/commands/builtin/twitch/StartCommercial.hpp"
@@ -385,6 +386,8 @@ CommandController::CommandController(const Paths &paths)
     this->registerCommand("/popup", &commands::popup);
 
     this->registerCommand("/clearmessages", &commands::clearmessages);
+
+    this->registerCommand("/shadow", &commands::toggleShadowChat);
 
     this->registerCommand("/settitle", &commands::setTitle);
 

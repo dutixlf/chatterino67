@@ -21,6 +21,8 @@
 #include "util/Helpers.hpp"
 #include "util/IncognitoBrowser.hpp"
 #include "widgets/BaseWindow.hpp"
+#include "widgets/dialogs/ColorPickerDialog.hpp"
+#include "widgets/helper/color/ColorButton.hpp"
 #include "widgets/helper/FontSettingWidget.hpp"
 #include "widgets/settingspages/GeneralPageView.hpp"
 #include "widgets/settingspages/SettingWidget.hpp"
@@ -91,6 +93,35 @@ void addKeyboardModifierSetting(GeneralPageView &layout, const QString &title,
             }
         },
         false);
+}
+void addColorPicker(GeneralPageView &view, const QString &label,
+                    QStringSetting &setting, QWidget *host,
+                    pajlada::Signals::SignalHolder &connections)
+{
+    auto *row = new QHBoxLayout();
+    row->addWidget(new QLabel(label));
+
+    auto *btn = new ColorButton(QColor(setting.getValue()));
+    setting.connect(
+        [btn](const QString &v, const auto &) {
+            btn->setColor(QColor(v));
+        },
+        connections);
+    QObject::connect(btn, &ColorButton::clicked, [host, &setting]() {
+        auto *dlg = new ColorPickerDialog(QColor(setting), host);
+        QObject::connect(dlg, &ColorPickerDialog::colorConfirmed, host,
+                         [&setting](auto selected) {
+                             if (selected.isValid())
+                             {
+                                 setting =
+                                     selected.name(QColor::HexArgb);
+                             }
+                         });
+        dlg->show();
+    });
+    row->addWidget(btn);
+    row->addStretch(1);
+    view.addLayout(row);
 }
 }  // namespace
 
@@ -584,6 +615,24 @@ void GeneralPage::initLayout(GeneralPageView &layout)
         true,
         {"Limits the amount of characters displayed in deleted messages "
          "when announced via system message."});
+
+    SettingWidget::checkbox("Enable shadow chat", s.shadowChatEnabled)
+        ->setTooltip("Connect to the shadow chat server and enable "
+                     "third-party chatroom features.")
+        ->addTo(layout);
+    SettingWidget::checkbox("Send messages to shadow chat",
+                            s.shadowChatSendToShadow)
+        ->setTooltip("When checked, typed messages will be sent to the "
+                     "shadow chat server instead of Twitch chat.")
+        ->addTo(layout);
+
+    SettingWidget::checkbox("Highlight shadow chat messages",
+                            s.shadowChatHighlightEnabled)
+        ->setTooltip("Use a custom background color for shadow chat messages "
+                     "to distinguish them from regular Twitch chat.")
+        ->addTo(layout);
+    addColorPicker(layout, "Shadow chat highlight color:",
+                   s.shadowChatColor, this, this->managedConnections_);
 
     layout.addSeparator();
 

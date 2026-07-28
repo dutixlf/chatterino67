@@ -10,6 +10,7 @@
 #include "common/ChannelChatters.hpp"
 #include "common/Common.hpp"
 #include "common/UniqueAccess.hpp"
+#include <lrucache/lrucache.hpp>
 #include "providers/ffz/FfzBadges.hpp"
 #include "providers/ffz/FfzEmotes.hpp"
 #include "providers/twitch/eventsub/SubscriptionHandle.hpp"
@@ -292,6 +293,12 @@ public:
 
     void addTwitchBadgeSets(const HelixChannelBadges &channelBadges);
 
+    /// Per-user badge cache — populated from IRC tags when a message arrives
+    void cacheUserBadges(const QString &userID, const QString &badges,
+                         const QString &badgeInfo);
+    std::optional<std::pair<QString, QString>> lookupUserBadges(
+        const QString &userID) const;
+
     // Cheers
     std::optional<CheerEmote> cheerEmote(const QString &string) const;
     void setCheerEmoteSets(const std::vector<HelixCheermoteSet> &cheermoteSets);
@@ -541,6 +548,10 @@ private:
     UniqueAccess<std::map<QString, std::map<QString, EmotePtr>>>
         badgeSets_;  // "subscribers": { "0": ... "3": ... "6": ...
     UniqueAccess<std::vector<CheerEmoteSet>> cheerEmoteSets_;
+
+    static constexpr size_t userBadgeCacheMaxSize = 5000;
+    UniqueAccess<cache::lru_cache<QString, std::pair<QString, QString>>>
+        userBadgeCache_;
     UniqueAccess<std::map<QString, ChannelPointReward>> channelPointRewards_;
     boost::circular_buffer_space_optimized<QueuedRedemption>
         waitingRedemptions_{MAX_QUEUED_REDEMPTIONS};
