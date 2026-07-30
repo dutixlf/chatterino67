@@ -139,6 +139,9 @@ private:
 
     std::chrono::milliseconds hbInterval_;
     QTimer heartbeatWatchdog_;
+    /// Re-verify watchdog: if hello gets no response in time, the session
+    /// is considered lost and the socket is closed (manager reconnects).
+    QTimer helloWatchdog_;
 };
 
 } // namespace chatterino::chatroom

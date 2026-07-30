@@ -28,6 +28,17 @@ ChatroomClient::ChatroomClient(ChatroomManager &manager,
                     << "ChatroomClient: heartbeat timeout, closing";
                 this->close();
             });
+
+    this->helloWatchdog_.setInterval(std::chrono::seconds(10));
+    this->helloWatchdog_.setSingleShot(true);
+    connect(&this->helloWatchdog_, &QTimer::timeout, this, [this]() {
+        if (!this->verified_)
+        {
+            qCWarning(chatterinoChatroom)
+                << "ChatroomClient: hello timeout, verification lost, closing";
+            this->close();
+        }
+    });
 }
 
 ChatroomClient::~ChatroomClient()
@@ -44,10 +55,18 @@ void ChatroomClient::connectToServer(const QString &ticket)
         this->ticket_ = ticket;
         this->helloSent_ = false;
         this->verified_ = false;
+        // Queue current rooms for resubscription after re-verification
+        for (const auto &r : this->subscribedRooms_)
+        {
+            this->pendingRooms_.insert(r);
+        }
+        this->subscribedRooms_.clear();
         this->sendJson({
             {QStringLiteral("op"), QStringLiteral("hello")},
             {QStringLiteral("ticket"), ticket},
         });
+        this->helloSent_ = true;
+        this->helloWatchdog_.start();
         return;
     }
 
@@ -218,6 +237,7 @@ void ChatroomClient::sendRoomState(const QString &roomId, bool enabled)
 void ChatroomClient::close()
 {
     this->heartbeatWatchdog_.stop();
+    this->helloWatchdog_.stop();
     this->ws_.close();
     // pool stays alive in case we reconnect
 }
@@ -268,6 +288,7 @@ void ChatroomClient::onWsOpen()
             {QStringLiteral("ticket"), this->ticket_},
         });
         this->helloSent_ = true;
+        this->helloWatchdog_.start();
     }
 
     Q_EMIT connected();
@@ -341,6 +362,7 @@ void ChatroomClient::onWsClose()
 
     this->connected_ = false;
     this->heartbeatWatchdog_.stop();
+    this->helloWatchdog_.stop();
     this->verified_ = false;
     this->helloSent_ = false;
 
@@ -360,6 +382,8 @@ void ChatroomClient::handleHello(const QJsonObject &json)
 {
     bool verified = json.value(QStringLiteral("verified")).toBool();
     int heartbeat = json.value(QStringLiteral("heartbeat")).toInt(25);
+
+    this->helloWatchdog_.stop();
 
     qCDebug(chatterinoChatroom)
         << "ChatroomClient: hello response: verified =" << verified
